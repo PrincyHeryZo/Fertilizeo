@@ -2,8 +2,10 @@ import { Request, Response } from 'express';
 import db from '../../database/db.ts';
 
 export const getAllProducts = (req: Request, res: Response) => {
-    const { category, minPrice, maxPrice, search } = req.query;
-    let query = 'SELECT p.*, u.name as producer_name FROM products p JOIN users u ON p.producer_id = u.id WHERE p.is_approved = 1';
+    const { category, minPrice, maxPrice, search, page = 1, limit = 8 } = req.query;
+    const offset = (Number(page) - 1) * Number(limit);
+    
+    let query = 'SELECT p.*, u.name as producer_name, u.location as producer_location FROM products p JOIN users u ON p.producer_id = u.id WHERE p.is_approved = 1';
     const params: any[] = [];
 
     if (category) {
@@ -24,10 +26,40 @@ export const getAllProducts = (req: Request, res: Response) => {
     }
 
     try {
+        const totalCount = db.prepare(`SELECT COUNT(*) as count FROM (${query})`).get(...params) as any;
+        
+        query += ' ORDER BY p.created_at DESC LIMIT ? OFFSET ?';
+        params.push(Number(limit), offset);
+
         const products = db.prepare(query).all(...params);
-        res.json(products);
+        res.json({
+            products,
+            pagination: {
+                total: totalCount.count,
+                page: Number(page),
+                limit: Number(limit),
+                totalPages: Math.ceil(totalCount.count / Number(limit))
+            }
+        });
     } catch (error) {
         res.status(500).json({ message: 'Erreur lors de la récupération des produits.' });
+    }
+};
+
+export const getNearbyProducts = (req: Request, res: Response) => {
+    const { location } = req.query;
+    try {
+        // Simple string match for "nearby" in this demo
+        const products = db.prepare(`
+            SELECT p.*, u.name as producer_name, u.location as producer_location 
+            FROM products p 
+            JOIN users u ON p.producer_id = u.id 
+            WHERE p.is_approved = 1 AND u.location LIKE ?
+            LIMIT 4
+        `).all(`%${location}%`);
+        res.json(products);
+    } catch (error) {
+        res.status(500).json({ message: 'Erreur lors de la récupération des produits à proximité.' });
     }
 };
 

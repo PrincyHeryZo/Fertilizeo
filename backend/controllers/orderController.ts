@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import db from '../../database/db.ts';
+import { notifyUser } from '../utils/socket.ts';
 
 export const createOrder = (req: any, res: Response) => {
     const { items, total_amount } = req.body; // items: [{product_id, quantity, price}]
@@ -14,11 +15,22 @@ export const createOrder = (req: any, res: Response) => {
         for (const item of items) {
             insertItem.run(orderId, item.product_id, item.quantity, item.price);
             updateStock.run(item.quantity, item.product_id);
+            
+            // Notify producer
+            const product: any = db.prepare('SELECT producer_id, name FROM products WHERE id = ?').get(item.product_id);
+            if (product) {
+                const content = `Nouvelle commande pour votre produit: ${product.name}`;
+                db.prepare('INSERT INTO notifications (user_id, type, content) VALUES (?, ?, ?)')
+                    .run(product.producer_id, 'order', content);
+                notifyUser(product.producer_id, 'order', content);
+            }
         }
 
         // Create notification for the buyer
+        const buyerContent = `Votre commande #${orderId} a été enregistrée.`;
         db.prepare('INSERT INTO notifications (user_id, type, content) VALUES (?, ?, ?)')
-            .run(req.user.id, 'order', `Votre commande #${orderId} a été enregistrée.`);
+            .run(req.user.id, 'order', buyerContent);
+        notifyUser(req.user.id, 'order', buyerContent);
 
         return orderId;
     });

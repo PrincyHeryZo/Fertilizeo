@@ -1,5 +1,5 @@
 {
   "name": "FERTILI’ZEO",
   "description": "Plateforme agricole numérique pour connecter les acteurs de l'écosystème de l'agriculture biologique à Madagascar.",
-  "requestFramePermissions": []
+  "requestFramePermissions": ["geolocation"]
 }

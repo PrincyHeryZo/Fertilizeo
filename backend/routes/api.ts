@@ -6,19 +6,22 @@ import * as forumController from '../controllers/forumController.ts';
 import * as messageController from '../controllers/messageController.ts';
 import * as adminController from '../controllers/adminController.ts';
 import { authenticateToken, authorizeRoles } from '../middleware/auth.ts';
+import { validate } from '../middleware/validate.ts';
+import { registerSchema, loginSchema, productSchema } from '../schemas/auth.ts';
 
 const router = express.Router();
 
 // Auth Routes
-router.post('/auth/register', authController.register);
-router.post('/auth/login', authController.login);
+router.post('/auth/register', validate(registerSchema), authController.register);
+router.post('/auth/login', validate(loginSchema), authController.login);
 router.get('/auth/profile', authenticateToken, authController.getProfile);
 router.put('/auth/profile', authenticateToken, authController.updateProfile);
 
 // Product Routes
 router.get('/products', productController.getAllProducts);
+router.get('/products/nearby', productController.getNearbyProducts);
 router.get('/products/:id', productController.getProductById);
-router.post('/products', authenticateToken, authorizeRoles('Producteur', 'Fournisseur', 'Administrateur'), productController.createProduct);
+router.post('/products', authenticateToken, authorizeRoles('Producteur', 'Fournisseur', 'Administrateur'), validate(productSchema), productController.createProduct);
 router.put('/products/:id', authenticateToken, productController.updateProduct);
 router.delete('/products/:id', authenticateToken, productController.deleteProduct);
 
