@@ -9,15 +9,16 @@ export const register = async (req: Request, res: Response) => {
     const { name, email, password, phone, location, role } = req.body;
 
     try {
-        const existingUser = db.prepare('SELECT * FROM users WHERE email = ?').get(email);
+        const existingUser = await db.get('SELECT * FROM users WHERE email = ?', [email]);
         if (existingUser) {
             return res.status(400).json({ message: 'Cet email est déjà utilisé.' });
         }
 
         const hashedPassword = await bcrypt.hash(password, 10);
-        const result = db.prepare(
-            'INSERT INTO users (name, email, password, phone, location, role) VALUES (?, ?, ?, ?, ?, ?)'
-        ).run(name, email, hashedPassword, phone, location, role);
+        const result = await db.run(
+            'INSERT INTO users (name, email, password, phone, location, role) VALUES (?, ?, ?, ?, ?, ?)',
+            [name, email, hashedPassword, phone, location, role]
+        );
 
         const token = jwt.sign({ id: result.lastInsertRowid, role, email }, JWT_SECRET, { expiresIn: '24h' });
 
@@ -34,7 +35,7 @@ export const login = async (req: Request, res: Response) => {
     const { email, password } = req.body;
 
     try {
-        const user: any = db.prepare('SELECT * FROM users WHERE email = ?').get(email);
+        const user: any = await db.get('SELECT * FROM users WHERE email = ?', [email]);
         if (!user) {
             return res.status(400).json({ message: 'Identifiants invalides.' });
         }
@@ -55,20 +56,20 @@ export const login = async (req: Request, res: Response) => {
     }
 };
 
-export const getProfile = (req: any, res: Response) => {
+export const getProfile = async (req: any, res: Response) => {
     try {
-        const user = db.prepare('SELECT id, name, email, role, phone, location FROM users WHERE id = ?').get(req.user.id);
+        const user = await db.get('SELECT id, name, email, role, phone, location FROM users WHERE id = ?', [req.user.id]);
         res.json(user);
     } catch (error) {
         res.status(500).json({ message: 'Erreur lors de la récupération du profil.' });
     }
 };
 
-export const updateProfile = (req: any, res: Response) => {
+export const updateProfile = async (req: any, res: Response) => {
     const { name, phone, location } = req.body;
     try {
-        db.prepare('UPDATE users SET name = ?, phone = ?, location = ? WHERE id = ?')
-            .run(name, phone, location, req.user.id);
+        await db.run('UPDATE users SET name = ?, phone = ?, location = ? WHERE id = ?',
+            [name, phone, location, req.user.id]);
         res.json({ message: 'Profil mis à jour avec succès.' });
     } catch (error) {
         res.status(500).json({ message: 'Erreur lors de la mise à jour du profil.' });
