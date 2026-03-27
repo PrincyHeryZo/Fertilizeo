@@ -1,0 +1,200 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { motion } from 'motion/react';
+import { Send, MessageSquare, Search, User } from 'lucide-react';
+import api from '../../../../Documents/MUSIC LYRICS/Fertilizeo_fixed/Fertilizeo_fixed/src/services/api.ts';
+import { useAuth } from '../../../../Documents/MUSIC LYRICS/Fertilizeo_fixed/Fertilizeo_fixed/src/context/AuthContext.tsx';
+import toast from 'react-hot-toast';
+
+interface Message {
+  id: number;
+  sender_id: number;
+  receiver_id: number;
+  content: string;
+  is_read: boolean;
+  created_at: string;
+  sender_name?: string;
+  receiver_name?: string;
+}
+
+interface Conversation {
+  userId: number;
+  userName: string;
+  lastMessage: string;
+  lastTime: string;
+  unread: number;
+}
+
+const Messages: React.FC = () => {
+  const { user } = useAuth();
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
+  const [newMessage, setNewMessage] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [sending, setSending] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => { fetchMessages(); }, []);
+  useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
+
+  const fetchMessages = async () => {
+    try {
+      const response = await api.get('/messages');
+      const allMessages: Message[] = response.data;
+      setMessages(allMessages);
+      // Build conversations list
+      const convMap = new Map<number, Conversation>();
+      allMessages.forEach(msg => {
+        const otherId = msg.sender_id === user?.id ? msg.receiver_id : msg.sender_id;
+        const otherName = msg.sender_id === user?.id ? (msg.receiver_name || 'Utilisateur') : (msg.sender_name || 'Utilisateur');
+        const existing = convMap.get(otherId);
+        if (!existing) {
+          convMap.set(otherId, {
+            userId: otherId,
+            userName: otherName,
+            lastMessage: msg.content,
+            lastTime: msg.created_at,
+            unread: (!msg.is_read && msg.receiver_id === user?.id) ? 1 : 0,
+          });
+        } else {
+          if (!msg.is_read && msg.receiver_id === user?.id) existing.unread++;
+        }
+      });
+      setConversations(Array.from(convMap.values()));
+      if (convMap.size > 0 && !selectedUserId) {
+        setSelectedUserId(Array.from(convMap.keys())[0]);
+      }
+    } catch {
+      toast.error('Erreur lors du chargement des messages');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const currentMessages = messages.filter(m =>
+    (m.sender_id === user?.id && m.receiver_id === selectedUserId) ||
+    (m.receiver_id === user?.id && m.sender_id === selectedUserId)
+  ).sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+
+  const selectedConv = conversations.find(c => c.userId === selectedUserId);
+
+  const handleSend = async () => {
+    if (!newMessage.trim() || !selectedUserId) return;
+    setSending(true);
+    try {
+      await api.post('/messages', { receiver_id: selectedUserId, content: newMessage.trim() });
+      setNewMessage('');
+      fetchMessages();
+    } catch {
+      toast.error('Erreur lors de l\'envoi');
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <div className="p-6 max-w-6xl mx-auto h-[calc(100vh-80px)]">
+      <h1 className="text-3xl font-bold text-gray-900 mb-6 tracking-tight">Messagerie</h1>
+      <div className="bg-white rounded-3xl border border-gray-100 shadow-sm flex h-[calc(100%-80px)] overflow-hidden">
+        {/* Sidebar conversations */}
+        <div className="w-80 border-r border-gray-100 flex flex-col flex-shrink-0">
+          <div className="p-4 border-b border-gray-100">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16}/>
+              <input placeholder="Rechercher..." className="w-full pl-9 pr-4 py-2 bg-gray-50 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-300"/>
+            </div>
+          </div>
+          <div className="flex-1 overflow-y-auto">
+            {loading ? (
+              <div className="p-4 space-y-3">
+                {[1,2,3].map(i => <div key={i} className="h-16 bg-gray-100 rounded-2xl animate-pulse"/>)}
+              </div>
+            ) : conversations.length === 0 ? (
+              <div className="p-8 text-center text-gray-400">
+                <MessageSquare size={40} className="mx-auto mb-3 opacity-50"/>
+                <p className="text-sm">Aucune conversation</p>
+              </div>
+            ) : (
+              conversations.map(conv => (
+                <button key={conv.userId} onClick={() => setSelectedUserId(conv.userId)}
+                  className={`w-full p-4 flex items-center gap-3 hover:bg-gray-50 transition-all text-left ${selectedUserId === conv.userId ? 'bg-emerald-50 border-r-4 border-emerald-500' : ''}`}>
+                  <div className="w-10 h-10 bg-emerald-100 rounded-full flex items-center justify-center text-emerald-700 font-bold flex-shrink-0">
+                    {conv.userName.charAt(0).toUpperCase()}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex justify-between items-center">
+                      <p className="font-bold text-gray-900 text-sm truncate">{conv.userName}</p>
+                      {conv.unread > 0 && <span className="bg-emerald-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold">{conv.unread}</span>}
+                    </div>
+                    <p className="text-xs text-gray-500 truncate mt-0.5">{conv.lastMessage}</p>
+                  </div>
+                </button>
+              ))
+            )}
+          </div>
+        </div>
+
+        {/* Chat area */}
+        <div className="flex-1 flex flex-col">
+          {selectedUserId && selectedConv ? (
+            <>
+              <div className="p-5 border-b border-gray-100 flex items-center gap-3">
+                <div className="w-10 h-10 bg-emerald-100 rounded-full flex items-center justify-center text-emerald-700 font-bold">
+                  {selectedConv.userName.charAt(0).toUpperCase()}
+                </div>
+                <div>
+                  <p className="font-bold text-gray-900">{selectedConv.userName}</p>
+                  <p className="text-xs text-emerald-500">En ligne</p>
+                </div>
+              </div>
+              <div className="flex-1 overflow-y-auto p-6 space-y-4">
+                {currentMessages.length === 0 ? (
+                  <div className="text-center text-gray-400 mt-12">
+                    <MessageSquare size={40} className="mx-auto mb-3 opacity-30"/>
+                    <p>Démarrez la conversation !</p>
+                  </div>
+                ) : currentMessages.map((msg) => {
+                  const isMe = msg.sender_id === user?.id;
+                  return (
+                    <motion.div key={msg.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+                      className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
+                      <div className={`max-w-[70%] px-4 py-3 rounded-2xl text-sm ${isMe ? 'bg-emerald-600 text-white rounded-br-sm' : 'bg-gray-100 text-gray-800 rounded-bl-sm'}`}>
+                        <p>{msg.content}</p>
+                        <p className={`text-xs mt-1 ${isMe ? 'text-emerald-200' : 'text-gray-400'}`}>
+                          {new Date(msg.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                      </div>
+                    </motion.div>
+                  );
+                })}
+                <div ref={messagesEndRef}/>
+              </div>
+              <div className="p-4 border-t border-gray-100">
+                <div className="flex gap-3">
+                  <input value={newMessage} onChange={e => setNewMessage(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && !e.shiftKey && handleSend()}
+                    placeholder="Écrivez votre message..."
+                    className="flex-1 bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 outline-none focus:ring-2 focus:ring-emerald-300 text-sm"/>
+                  <button onClick={handleSend} disabled={sending || !newMessage.trim()}
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white p-3 rounded-2xl transition-all disabled:opacity-50 flex items-center justify-center">
+                    {sending ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"/> : <Send size={20}/>}
+                  </button>
+                </div>
+              </div>
+            </>
+          ) : (
+            <div className="flex-1 flex items-center justify-center text-center text-gray-400">
+              <div>
+                <MessageSquare size={56} className="mx-auto mb-4 opacity-30"/>
+                <p className="text-lg font-medium">Sélectionnez une conversation</p>
+                <p className="text-sm mt-1">Ou contactez un producteur depuis la marketplace</p>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default Messages;

@@ -4,12 +4,15 @@ import db from '../../database/db.ts';
 export const getMyMessages = async (req: any, res: Response) => {
     try {
         const messages = await db.all(`
-            SELECT m.*, u.name as other_user_name 
-            FROM messages m 
-            JOIN users u ON (m.sender_id = u.id OR m.receiver_id = u.id)
-            WHERE (m.sender_id = ? OR m.receiver_id = ?) AND u.id != ?
-            ORDER BY m.created_at DESC
-        `, [req.user.id, req.user.id, req.user.id]);
+            SELECT m.*,
+                   s.name as sender_name,
+                   r.name as receiver_name
+            FROM messages m
+            JOIN users s ON m.sender_id = s.id
+            JOIN users r ON m.receiver_id = r.id
+            WHERE m.sender_id = ? OR m.receiver_id = ?
+            ORDER BY m.created_at ASC
+        `, [req.user.id, req.user.id]);
         res.json(messages);
     } catch (error) {
         res.status(500).json({ message: 'Erreur lors de la récupération des messages.' });
@@ -22,11 +25,12 @@ export const sendMessage = async (req: any, res: Response) => {
         const result = await db.run('INSERT INTO messages (sender_id, receiver_id, content) VALUES (?, ?, ?)',
             [req.user.id, receiver_id, content]);
         
+        const sender: any = await db.get('SELECT name FROM users WHERE id = ?', [req.user.id]);
         await db.run('INSERT INTO notifications (user_id, type, content) VALUES (?, ?, ?)',
-            [receiver_id, 'message', `Vous avez reçu un nouveau message.`]);
+            [receiver_id, 'message', `Nouveau message de ${sender?.name || 'un utilisateur'}.`]);
 
         res.status(201).json({ id: result.lastInsertRowid, message: 'Message envoyé.' });
     } catch (error) {
-        res.status(500).json({ message: 'Erreur lors de l’envoi du message.' });
+        res.status(500).json({ message: 'Erreur lors de l\'envoi du message.' });
     }
 };

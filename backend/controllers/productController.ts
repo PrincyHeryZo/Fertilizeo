@@ -119,3 +119,15 @@ export const deleteProduct = async (req: any, res: Response) => {
         res.status(500).json({ message: 'Erreur lors de la suppression du produit.' });
     }
 };
+
+export const getMyProducts = async (req: any, res: Response) => {
+    try {
+        const products = await db.all(
+            'SELECT * FROM products WHERE producer_id = ? ORDER BY created_at DESC',
+            [req.user.id]
+        );
+        res.json(products);
+    } catch (error) {
+        res.status(500).json({ message: 'Erreur lors de la récupération de vos produits.' });
+    }
+};

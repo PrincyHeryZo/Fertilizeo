@@ -30,21 +30,25 @@ if (DATABASE_URL) {
 
   db = {
     query: async (sql: string, params: any[] = []) => {
-      const result = await pool.query(sql.replace(/\?/g, (_, i) => `$${i + 1}`), params);
+      let counter = 0;
+      const result = await pool.query(sql.replace(/\?/g, () => `$${++counter}`), params);
       return result;
     },
     get: async (sql: string, params: any[] = []) => {
-      const result = await pool.query(sql.replace(/\?/g, (_, i) => `$${i + 1}`), params);
+      let counter = 0;
+      const result = await pool.query(sql.replace(/\?/g, () => `$${++counter}`), params);
       return result.rows[0];
     },
     all: async (sql: string, params: any[] = []) => {
-      const result = await pool.query(sql.replace(/\?/g, (_, i) => `$${i + 1}`), params);
+      let counter = 0;
+      const result = await pool.query(sql.replace(/\?/g, () => `$${++counter}`), params);
       return result.rows;
     },
     run: async (sql: string, params: any[] = []) => {
       // For PostgreSQL, we often need RETURNING id to get the last insert id
       // We'll try to append RETURNING id if it's an INSERT and doesn't have it
-      let finalSql = sql.replace(/\?/g, (_, i) => `$${i + 1}`);
+      let counter = 0;
+      let finalSql = sql.replace(/\?/g, () => `$${++counter}`);
       if (finalSql.trim().toUpperCase().startsWith('INSERT') && !finalSql.toUpperCase().includes('RETURNING')) {
         finalSql += ' RETURNING id';
       }

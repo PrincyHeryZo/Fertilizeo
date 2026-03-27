@@ -1,13 +1,13 @@
 import express from 'express';
-import * as authController from '../controllers/authController.ts';
-import * as productController from '../controllers/productController.ts';
-import * as orderController from '../controllers/orderController.ts';
-import * as forumController from '../controllers/forumController.ts';
-import * as messageController from '../controllers/messageController.ts';
-import * as adminController from '../controllers/adminController.ts';
-import { authenticateToken, authorizeRoles } from '../middleware/auth.ts';
-import { validate } from '../middleware/validate.ts';
-import { registerSchema, loginSchema, productSchema } from '../schemas/auth.ts';
+import * as authController from '../../../../Documents/MUSIC LYRICS/Fertilizeo_fixed/Fertilizeo_fixed/backend/controllers/authController.ts';
+import * as productController from '../../../../Documents/MUSIC LYRICS/Fertilizeo_fixed/Fertilizeo_fixed/backend/controllers/productController.ts';
+import * as orderController from '../../../../Documents/MUSIC LYRICS/Fertilizeo_fixed/Fertilizeo_fixed/backend/controllers/orderController.ts';
+import * as forumController from '../../../../Documents/MUSIC LYRICS/Fertilizeo_fixed/Fertilizeo_fixed/backend/controllers/forumController.ts';
+import * as messageController from '../../../../Documents/MUSIC LYRICS/Fertilizeo_fixed/Fertilizeo_fixed/backend/controllers/messageController.ts';
+import * as adminController from '../../../../Documents/MUSIC LYRICS/Fertilizeo_fixed/Fertilizeo_fixed/backend/controllers/adminController.ts';
+import { authenticateToken, authorizeRoles } from '../../../../Documents/MUSIC LYRICS/Fertilizeo_fixed/Fertilizeo_fixed/backend/middleware/auth.ts';
+import { validate } from '../../../../Documents/MUSIC LYRICS/Fertilizeo_fixed/Fertilizeo_fixed/backend/middleware/validate.ts';
+import { registerSchema, loginSchema, productSchema } from '../../../../Documents/MUSIC LYRICS/Fertilizeo_fixed/Fertilizeo_fixed/backend/schemas/auth.ts';
 
 const router = express.Router();
 
@@ -20,6 +20,7 @@ router.put('/auth/profile', authenticateToken, authController.updateProfile);
 // Product Routes
 router.get('/products', productController.getAllProducts);
 router.get('/products/nearby', productController.getNearbyProducts);
+router.get('/products/my', authenticateToken, productController.getMyProducts);
 router.get('/products/:id', productController.getProductById);
 router.post('/products', authenticateToken, authorizeRoles('Producteur', 'Fournisseur', 'Administrateur'), validate(productSchema), productController.createProduct);
 router.put('/products/:id', authenticateToken, productController.updateProduct);
@@ -39,6 +40,11 @@ router.post('/forum/comments', authenticateToken, forumController.createComment)
 // Message Routes
 router.get('/messages', authenticateToken, messageController.getMyMessages);
 router.post('/messages', authenticateToken, messageController.sendMessage);
+
+// Notification Routes
+import * as notificationController from '../../../../Documents/MUSIC LYRICS/Fertilizeo_fixed/Fertilizeo_fixed/backend/controllers/notificationController.ts';
+router.get('/notifications', authenticateToken, notificationController.getMyNotifications);
+router.put('/notifications/read-all', authenticateToken, notificationController.markAllRead);
 
 // Admin Routes
 router.get('/admin/users', authenticateToken, authorizeRoles('Administrateur'), adminController.getAllUsers);
