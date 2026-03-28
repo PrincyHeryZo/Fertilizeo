@@ -132,3 +132,18 @@ export const getMyProducts = async (req: any, res: Response) => {
         res.status(500).json({ message: 'Erreur lors de la récupération de vos produits.' });
     }
 };
+
+export const getProductReviews = async (req: Request, res: Response) => {
+    try {
+        const reviews = await db.all(`
+            SELECT r.*, u.name as reviewer_name
+            FROM reviews r
+            JOIN users u ON r.user_id = u.id
+            WHERE r.product_id = ?
+            ORDER BY r.created_at DESC
+        `, [req.params.id]);
+        res.json(reviews);
+    } catch (error) {
+        res.status(500).json({ message: 'Erreur lors de la récupération des avis.' });
+    }
+};

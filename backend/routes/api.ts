@@ -5,48 +5,49 @@ import * as orderController from '../controllers/orderController.ts';
 import * as forumController from '../controllers/forumController.ts';
 import * as messageController from '../controllers/messageController.ts';
 import * as adminController from '../controllers/adminController.ts';
+import * as notificationController from '../controllers/notificationController.ts';
 import { authenticateToken, authorizeRoles } from '../middleware/auth.ts';
 import { validate } from '../middleware/validate.ts';
 import { registerSchema, loginSchema, productSchema } from '../schemas/auth.ts';
 
 const router = express.Router();
 
-// Auth Routes
+// Auth
 router.post('/auth/register', validate(registerSchema), authController.register);
 router.post('/auth/login', validate(loginSchema), authController.login);
 router.get('/auth/profile', authenticateToken, authController.getProfile);
 router.put('/auth/profile', authenticateToken, authController.updateProfile);
 
-// Product Routes
+// Products
 router.get('/products', productController.getAllProducts);
 router.get('/products/nearby', productController.getNearbyProducts);
 router.get('/products/my', authenticateToken, productController.getMyProducts);
 router.get('/products/:id', productController.getProductById);
+router.get('/products/:id/reviews', productController.getProductReviews);
 router.post('/products', authenticateToken, authorizeRoles('Producteur', 'Fournisseur', 'Administrateur'), validate(productSchema), productController.createProduct);
 router.put('/products/:id', authenticateToken, productController.updateProduct);
 router.delete('/products/:id', authenticateToken, productController.deleteProduct);
 
-// Order Routes
+// Orders
 router.post('/orders', authenticateToken, orderController.createOrder);
 router.get('/orders', authenticateToken, orderController.getMyOrders);
 router.get('/orders/:id', authenticateToken, orderController.getOrderById);
 
-// Forum Routes
+// Forum
 router.get('/forum/posts', forumController.getAllPosts);
 router.post('/forum/posts', authenticateToken, forumController.createPost);
 router.get('/forum/posts/:id/comments', forumController.getPostComments);
 router.post('/forum/comments', authenticateToken, forumController.createComment);
 
-// Message Routes
+// Messages
 router.get('/messages', authenticateToken, messageController.getMyMessages);
 router.post('/messages', authenticateToken, messageController.sendMessage);
 
-// Notification Routes
-import * as notificationController from '../controllers/notificationController.ts';
+// Notifications
 router.get('/notifications', authenticateToken, notificationController.getMyNotifications);
 router.put('/notifications/read-all', authenticateToken, notificationController.markAllRead);
 
-// Admin Routes
+// Admin
 router.get('/admin/users', authenticateToken, authorizeRoles('Administrateur'), adminController.getAllUsers);
 router.put('/admin/users/:id/role', authenticateToken, authorizeRoles('Administrateur'), adminController.updateUserRole);
 router.get('/admin/products/pending', authenticateToken, authorizeRoles('Administrateur'), adminController.getPendingProducts);
