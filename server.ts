@@ -22,13 +22,13 @@ async function startServer() {
     crossOriginEmbedderPolicy: false
   }));
 
+  // Fixed: removed custom keyGenerator that caused IPv6 crash
   const limiter = rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: 100,
+    max: 200,
     message: { message: "Trop de requêtes, veuillez réessayer plus tard." },
     standardHeaders: true,
     legacyHeaders: false,
-    keyGenerator: (req) => req.ip || "unknown",
   });
   app.use("/api/", limiter);
 

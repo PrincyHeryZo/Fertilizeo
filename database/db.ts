@@ -1,11 +1,7 @@
-import Database from 'better-sqlite3';
-import path from 'path';
-import fs from 'fs';
-import { fileURLToPath } from 'url';
 import pg from 'pg';
+import dotenv from 'dotenv';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+dotenv.config();
 
 const DATABASE_URL = process.env.DATABASE_URL;
 
@@ -17,38 +13,34 @@ interface DbInterface {
   transaction: (callback: () => Promise<void>) => Promise<void>;
 }
 
+function convertParams(sql: string): string {
+  let counter = 0;
+  return sql.replace(/\?/g, () => `$${++counter}`);
+}
+
 let db: DbInterface;
 
 if (DATABASE_URL) {
-  // PostgreSQL (Supabase)
   const pool = new pg.Pool({
     connectionString: DATABASE_URL,
-    ssl: {
-      rejectUnauthorized: false
-    }
+    ssl: { rejectUnauthorized: false }
   });
 
   db = {
     query: async (sql: string, params: any[] = []) => {
-      let counter = 0;
-      const result = await pool.query(sql.replace(/\?/g, () => `$${++counter}`), params);
+      const result = await pool.query(convertParams(sql), params);
       return result;
     },
     get: async (sql: string, params: any[] = []) => {
-      let counter = 0;
-      const result = await pool.query(sql.replace(/\?/g, () => `$${++counter}`), params);
+      const result = await pool.query(convertParams(sql), params);
       return result.rows[0];
     },
     all: async (sql: string, params: any[] = []) => {
-      let counter = 0;
-      const result = await pool.query(sql.replace(/\?/g, () => `$${++counter}`), params);
+      const result = await pool.query(convertParams(sql), params);
       return result.rows;
     },
     run: async (sql: string, params: any[] = []) => {
-      // For PostgreSQL, we often need RETURNING id to get the last insert id
-      // We'll try to append RETURNING id if it's an INSERT and doesn't have it
-      let counter = 0;
-      let finalSql = sql.replace(/\?/g, () => `$${++counter}`);
+      let finalSql = convertParams(sql);
       if (finalSql.trim().toUpperCase().startsWith('INSERT') && !finalSql.toUpperCase().includes('RETURNING')) {
         finalSql += ' RETURNING id';
       }
@@ -71,11 +63,16 @@ if (DATABASE_URL) {
   };
   console.log('Connected to PostgreSQL (Supabase)');
 } else {
-  // SQLite (Local)
+  // SQLite fallback for local dev
+  const { default: Database } = await import('better-sqlite3');
+  const path = await import('path');
+  const fs = await import('fs');
+  const { fileURLToPath } = await import('url');
+
+  const __filename = fileURLToPath(import.meta.url);
+  const __dirname = path.dirname(__filename);
   const dbPath = path.resolve(__dirname, 'fertilizeo.db');
   const sqlite = new Database(dbPath);
-
-  // Initialize database with schema
   const schemaPath = path.resolve(__dirname, 'schema.sql');
   const schema = fs.readFileSync(schemaPath, 'utf8');
   sqlite.exec(schema);
@@ -88,20 +85,14 @@ if (DATABASE_URL) {
       }
       return stmt.run(...params);
     },
-    get: async (sql: string, params: any[] = []) => {
-      return sqlite.prepare(sql).get(...params);
-    },
-    all: async (sql: string, params: any[] = []) => {
-      return sqlite.prepare(sql).all(...params);
-    },
+    get: async (sql: string, params: any[] = []) => sqlite.prepare(sql).get(...params),
+    all: async (sql: string, params: any[] = []) => sqlite.prepare(sql).all(...params),
     run: async (sql: string, params: any[] = []) => {
       const result = sqlite.prepare(sql).run(...params);
       return { lastInsertRowid: result.lastInsertRowid };
     },
     transaction: async (callback: () => Promise<void>) => {
-      const tx = sqlite.transaction(async () => {
-        await callback();
-      });
+      const tx = sqlite.transaction(async () => { await callback(); });
       await tx();
     }
   };
