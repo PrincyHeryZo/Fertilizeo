@@ -13,7 +13,7 @@ dotenv.config();
 async function startServer() {
   const app = express();
   const httpServer = createServer(app);
-  const PORT = 3000;
+  const PORT = parseInt(process.env.PORT || '3000', 10);
 
   // Trust the first proxy (Cloud Run / Nginx)
   app.set('trust proxy', 1);
