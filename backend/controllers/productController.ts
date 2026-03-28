@@ -53,9 +53,9 @@ export const getNearbyProducts = async (req: Request, res: Response) => {
         const products = await db.all(`
             SELECT p.*, u.name as producer_name, u.location as producer_location
             FROM products p
-                     JOIN users u ON p.producer_id = u.id
+            JOIN users u ON p.producer_id = u.id
             WHERE p.is_approved = TRUE AND u.location LIKE ?
-                LIMIT 4
+            LIMIT 4
         `, [`%${location}%`]);
         res.json(products);
     } catch (error) {

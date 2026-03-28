@@ -40,6 +40,7 @@ export const approveProduct = async (req: Request, res: Response) => {
             await db.run('INSERT INTO notifications (user_id, type, content) VALUES (?, ?, ?)',
                 [product.producer_id, 'product', 'Votre produit a été approuvé.']);
         }
+
         res.json({ message: 'Produit approuvé.' });
     } catch (error) {
         res.status(500).json({ message: "Erreur lors de l'approbation du produit." });
