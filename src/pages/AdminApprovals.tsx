@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Package, CheckCircle, XCircle, MapPin, Tag, User } from 'lucide-react';
+import { Package, CheckCircle, XCircle, MapPin, User } from 'lucide-react';
 import api from '../services/api.ts';
 import toast from 'react-hot-toast';
 
@@ -40,9 +40,9 @@ const AdminApprovals: React.FC = () => {
     try {
       await api.put(`/admin/products/${id}/approve`);
       setProducts(products.filter(p => p.id !== id));
-      toast.success('Produit approuvé et publié sur la marketplace !', { icon: '✅' });
+      toast.success('Produit approuvé et publié !', { icon: '✅' });
     } catch {
-      toast.error('Erreur lors de l\'approbation');
+      toast.error("Erreur lors de l'approbation");
     } finally {
       setProcessingId(null);
     }
@@ -66,17 +66,17 @@ const AdminApprovals: React.FC = () => {
       <div className="mb-10">
         <h1 className="text-4xl font-bold text-gray-900 tracking-tight">Approbations de Produits</h1>
         <p className="text-gray-500 mt-1">
-          {loading ? '...' : products.length === 0 ? 'Aucun produit en attente' : `${products.length} produit(s) en attente de validation`}
+          {loading ? '...' : products.length === 0 ? 'Aucun produit en attente' : `${products.length} produit(s) en attente`}
         </p>
       </div>
 
       {loading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {[1,2,3].map(i => <div key={i} className="bg-white rounded-3xl border border-gray-100 animate-pulse h-80"/>)}
+          {[1,2,3].map(i => <div key={i} className="bg-white rounded-3xl border border-gray-100 animate-pulse h-80" />)}
         </div>
       ) : products.length === 0 ? (
         <div className="text-center py-24 bg-white rounded-3xl border-2 border-dashed border-gray-200">
-          <CheckCircle size={56} className="mx-auto text-emerald-400 mb-4"/>
+          <CheckCircle size={56} className="mx-auto text-emerald-400 mb-4" />
           <h3 className="text-2xl font-bold text-gray-900 mb-2">Tout est validé !</h3>
           <p className="text-gray-500">Aucun produit n'attend votre approbation.</p>
         </div>
@@ -89,41 +89,37 @@ const AdminApprovals: React.FC = () => {
                 className="bg-white rounded-3xl border border-amber-200 shadow-sm overflow-hidden">
                 <div className="relative h-48 overflow-hidden">
                   <img src={product.image_url || `https://picsum.photos/seed/${product.id}/600/400`}
-                    alt={product.name} className="w-full h-full object-cover"/>
+                    alt={product.name} className="w-full h-full object-cover" />
                   <div className="absolute top-3 left-3 bg-amber-100 text-amber-700 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1">
-                    <Package size={12}/> En attente
+                    <Package size={12} /> En attente
                   </div>
-                  <div className="absolute top-3 right-3 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full text-emerald-700 font-bold text-sm">
+                  <div className="absolute top-3 right-3 bg-white/90 px-3 py-1 rounded-full text-emerald-700 font-bold text-sm">
                     {product.category}
                   </div>
                 </div>
-
                 <div className="p-5">
                   <h3 className="font-bold text-gray-900 text-lg mb-1">{product.name}</h3>
                   <p className="text-gray-500 text-sm mb-3 line-clamp-2">{product.description}</p>
-
                   <div className="flex items-center gap-2 text-gray-500 text-sm mb-1">
-                    <User size={14}/><span className="font-medium">{product.producer_name}</span>
+                    <User size={14} /><span className="font-medium">{product.producer_name}</span>
                   </div>
                   <div className="flex items-center gap-2 text-gray-400 text-sm mb-4">
-                    <MapPin size={14}/><span>{product.producer_location || 'Madagascar'}</span>
+                    <MapPin size={14} /><span>{product.producer_location || 'Madagascar'}</span>
                   </div>
-
                   <div className="flex justify-between items-center mb-5">
                     <span className="text-2xl font-black text-emerald-600">{product.price.toLocaleString()} Ar</span>
                     <span className="text-sm text-gray-500 bg-gray-100 px-3 py-1 rounded-lg">Stock: {product.stock}</span>
                   </div>
-
                   <div className="flex gap-3">
-                    <button onClick={() => handleApprove(product.id)}
-                      disabled={processingId === product.id}
+                    <button onClick={() => handleApprove(product.id)} disabled={processingId === product.id}
                       className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white py-2.5 rounded-2xl font-bold flex items-center justify-center gap-2 transition-all disabled:opacity-50 text-sm">
-                      {processingId === product.id ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"/> : <><CheckCircle size={16}/> Approuver</>}
+                      {processingId === product.id
+                        ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        : <><CheckCircle size={16} /> Approuver</>}
                     </button>
-                    <button onClick={() => handleReject(product.id)}
-                      disabled={processingId === product.id}
+                    <button onClick={() => handleReject(product.id)} disabled={processingId === product.id}
                       className="flex-1 bg-red-50 hover:bg-red-100 text-red-600 py-2.5 rounded-2xl font-bold flex items-center justify-center gap-2 transition-all disabled:opacity-50 text-sm">
-                      <XCircle size={16}/> Refuser
+                      <XCircle size={16} /> Refuser
                     </button>
                   </div>
                 </div>
