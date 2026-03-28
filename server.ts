@@ -5,8 +5,8 @@ import dotenv from "dotenv";
 import { createServer } from "http";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
-import apiRoutes from "./backend/routes/api.ts";
-import { initSocket } from "./backend/utils/socket.ts";
+import apiRoutes from "../../Documents/MUSIC LYRICS/Fertilizeo_clean/backend/routes/api.ts";
+import { initSocket } from "../../Documents/MUSIC LYRICS/Fertilizeo_clean/backend/utils/socket.ts";
 
 dotenv.config();
 

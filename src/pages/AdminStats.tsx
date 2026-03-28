@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { Users, Package, ShoppingBag, TrendingUp, ArrowUpRight, BarChart2, Activity } from 'lucide-react';
-import api from '../../../../Documents/MUSIC LYRICS/Fertilizeo_fixed/Fertilizeo_fixed/src/services/api.ts';
+import api from '../../../../Documents/MUSIC LYRICS/Fertilizeo_clean/src/services/api.ts';
 
 interface Stats {
   users: number;

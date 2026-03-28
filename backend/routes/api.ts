@@ -1,13 +1,13 @@
 import express from 'express';
-import * as authController from '../../../../Documents/MUSIC LYRICS/Fertilizeo_fixed/Fertilizeo_fixed/backend/controllers/authController.ts';
-import * as productController from '../../../../Documents/MUSIC LYRICS/Fertilizeo_fixed/Fertilizeo_fixed/backend/controllers/productController.ts';
-import * as orderController from '../../../../Documents/MUSIC LYRICS/Fertilizeo_fixed/Fertilizeo_fixed/backend/controllers/orderController.ts';
-import * as forumController from '../../../../Documents/MUSIC LYRICS/Fertilizeo_fixed/Fertilizeo_fixed/backend/controllers/forumController.ts';
-import * as messageController from '../../../../Documents/MUSIC LYRICS/Fertilizeo_fixed/Fertilizeo_fixed/backend/controllers/messageController.ts';
-import * as adminController from '../../../../Documents/MUSIC LYRICS/Fertilizeo_fixed/Fertilizeo_fixed/backend/controllers/adminController.ts';
-import { authenticateToken, authorizeRoles } from '../../../../Documents/MUSIC LYRICS/Fertilizeo_fixed/Fertilizeo_fixed/backend/middleware/auth.ts';
-import { validate } from '../../../../Documents/MUSIC LYRICS/Fertilizeo_fixed/Fertilizeo_fixed/backend/middleware/validate.ts';
-import { registerSchema, loginSchema, productSchema } from '../../../../Documents/MUSIC LYRICS/Fertilizeo_fixed/Fertilizeo_fixed/backend/schemas/auth.ts';
+import * as authController from '../../../../Documents/MUSIC LYRICS/Fertilizeo_clean/backend/controllers/authController.ts';
+import * as productController from '../../../../Documents/MUSIC LYRICS/Fertilizeo_clean/backend/controllers/productController.ts';
+import * as orderController from '../../../../Documents/MUSIC LYRICS/Fertilizeo_clean/backend/controllers/orderController.ts';
+import * as forumController from '../../../../Documents/MUSIC LYRICS/Fertilizeo_clean/backend/controllers/forumController.ts';
+import * as messageController from '../../../../Documents/MUSIC LYRICS/Fertilizeo_clean/backend/controllers/messageController.ts';
+import * as adminController from '../../../../Documents/MUSIC LYRICS/Fertilizeo_clean/backend/controllers/adminController.ts';
+import { authenticateToken, authorizeRoles } from '../../../../Documents/MUSIC LYRICS/Fertilizeo_clean/backend/middleware/auth.ts';
+import { validate } from '../../../../Documents/MUSIC LYRICS/Fertilizeo_clean/backend/middleware/validate.ts';
+import { registerSchema, loginSchema, productSchema } from '../../../../Documents/MUSIC LYRICS/Fertilizeo_clean/backend/schemas/auth.ts';
 
 const router = express.Router();
 
@@ -42,7 +42,7 @@ router.get('/messages', authenticateToken, messageController.getMyMessages);
 router.post('/messages', authenticateToken, messageController.sendMessage);
 
 // Notification Routes
-import * as notificationController from '../../../../Documents/MUSIC LYRICS/Fertilizeo_fixed/Fertilizeo_fixed/backend/controllers/notificationController.ts';
+import * as notificationController from '../../../../Documents/MUSIC LYRICS/Fertilizeo_clean/backend/controllers/notificationController.ts';
 router.get('/notifications', authenticateToken, notificationController.getMyNotifications);
 router.put('/notifications/read-all', authenticateToken, notificationController.markAllRead);
 

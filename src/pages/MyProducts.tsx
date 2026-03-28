@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { Plus, Package, Edit, Trash2, Clock, CheckCircle, XCircle } from 'lucide-react';
-import api from '../../../../Documents/MUSIC LYRICS/Fertilizeo_fixed/Fertilizeo_fixed/src/services/api.ts';
+import api from '../../../../Documents/MUSIC LYRICS/Fertilizeo_clean/src/services/api.ts';
 import toast from 'react-hot-toast';
 
 interface Product {
