@@ -4,8 +4,8 @@ import db from '../../database/db.ts';
 export const getAllProducts = async (req: Request, res: Response) => {
     const { category, minPrice, maxPrice, search, page = 1, limit = 8 } = req.query;
     const offset = (Number(page) - 1) * Number(limit);
-    
-    let query = 'SELECT p.*, u.name as producer_name, u.location as producer_location FROM products p JOIN users u ON p.producer_id = u.id WHERE p.is_approved = 1';
+
+    let query = 'SELECT p.*, u.name as producer_name, u.location as producer_location FROM products p JOIN users u ON p.producer_id = u.id WHERE p.is_approved = TRUE';
     const params: any[] = [];
 
     if (category) {
@@ -28,7 +28,7 @@ export const getAllProducts = async (req: Request, res: Response) => {
     try {
         const countQuery = `SELECT COUNT(*) as count FROM (${query}) AS subquery`;
         const totalCount = await db.get(countQuery, params) as any;
-        
+
         query += ' ORDER BY p.created_at DESC LIMIT ? OFFSET ?';
         const productsParams = [...params, Number(limit), offset];
 
@@ -51,11 +51,11 @@ export const getNearbyProducts = async (req: Request, res: Response) => {
     const { location } = req.query;
     try {
         const products = await db.all(`
-            SELECT p.*, u.name as producer_name, u.location as producer_location 
-            FROM products p 
-            JOIN users u ON p.producer_id = u.id 
-            WHERE p.is_approved = 1 AND u.location LIKE ?
-            LIMIT 4
+            SELECT p.*, u.name as producer_name, u.location as producer_location
+            FROM products p
+                     JOIN users u ON p.producer_id = u.id
+            WHERE p.is_approved = TRUE AND u.location LIKE ?
+                LIMIT 4
         `, [`%${location}%`]);
         res.json(products);
     } catch (error) {
@@ -65,7 +65,10 @@ export const getNearbyProducts = async (req: Request, res: Response) => {
 
 export const getProductById = async (req: Request, res: Response) => {
     try {
-        const product = await db.get('SELECT p.*, u.name as producer_name FROM products p JOIN users u ON p.producer_id = u.id WHERE p.id = ?', [req.params.id]);
+        const product = await db.get(
+            'SELECT p.*, u.name as producer_name FROM products p JOIN users u ON p.producer_id = u.id WHERE p.id = ?',
+            [req.params.id]
+        );
         if (!product) return res.status(404).json({ message: 'Produit non trouvé.' });
         res.json(product);
     } catch (error) {
@@ -80,7 +83,7 @@ export const createProduct = async (req: any, res: Response) => {
             'INSERT INTO products (name, description, price, category, stock, image_url, producer_id) VALUES (?, ?, ?, ?, ?, ?, ?)',
             [name, description, price, category, stock, image_url, req.user.id]
         );
-        res.status(201).json({ id: result.lastInsertRowid, message: 'Produit créé et en attente d’approbation.' });
+        res.status(201).json({ id: result.lastInsertRowid, message: "Produit créé et en attente d'approbation." });
     } catch (error) {
         res.status(500).json({ message: 'Erreur lors de la création du produit.' });
     }
@@ -94,7 +97,6 @@ export const updateProduct = async (req: any, res: Response) => {
         if (product.producer_id !== req.user.id && req.user.role !== 'Administrateur') {
             return res.status(403).json({ message: 'Non autorisé.' });
         }
-
         await db.run(
             'UPDATE products SET name = ?, description = ?, price = ?, category = ?, stock = ?, image_url = ? WHERE id = ?',
             [name, description, price, category, stock, image_url, req.params.id]
@@ -112,7 +114,6 @@ export const deleteProduct = async (req: any, res: Response) => {
         if (product.producer_id !== req.user.id && req.user.role !== 'Administrateur') {
             return res.status(403).json({ message: 'Non autorisé.' });
         }
-
         await db.run('DELETE FROM products WHERE id = ?', [req.params.id]);
         res.json({ message: 'Produit supprimé.' });
     } catch (error) {
