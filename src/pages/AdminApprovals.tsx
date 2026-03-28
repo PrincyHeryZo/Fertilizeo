@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Package, CheckCircle, XCircle, MapPin, Tag, User } from 'lucide-react';
-import api from '../../../../Documents/MUSIC LYRICS/Fertilizeo_clean/src/services/api.ts';
+import api from '../services/api.ts';
 import toast from 'react-hot-toast';
 
 interface PendingProduct {

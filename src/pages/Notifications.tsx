@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { Bell, ShoppingBag, MessageSquare, Package, CheckCheck } from 'lucide-react';
-import api from '../../../../Documents/MUSIC LYRICS/Fertilizeo_clean/src/services/api.ts';
+import api from '../services/api.ts';
 import toast from 'react-hot-toast';
 
 interface Notification {

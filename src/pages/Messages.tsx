@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'motion/react';
 import { Send, MessageSquare, Search, User } from 'lucide-react';
-import api from '../../../../Documents/MUSIC LYRICS/Fertilizeo_clean/src/services/api.ts';
-import { useAuth } from '../../../../Documents/MUSIC LYRICS/Fertilizeo_clean/src/context/AuthContext.tsx';
+import api from '../services/api.ts';
+import { useAuth } from '../context/AuthContext.tsx';
 import toast from 'react-hot-toast';
 
 interface Message {
