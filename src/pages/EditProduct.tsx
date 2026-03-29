@@ -1,0 +1,289 @@
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { motion } from 'motion/react';
+import { Package, DollarSign, Tag, Info, Layers, AlertCircle, ArrowLeft, X, Plus, Upload, Save } from 'lucide-react';
+import api from '../services/api.ts';
+import toast from 'react-hot-toast';
+
+const MAX_PHOTOS = 5;
+const categories = ['Compost', 'Engrais Liquide', 'Matière Première', 'Outils'];
+
+const EditProduct: React.FC = () => {
+    const { id } = useParams<{ id: string }>();
+    const navigate = useNavigate();
+
+    const [formData, setFormData] = useState({
+        name: '',
+        description: '',
+        price: '',
+        category: 'Compost',
+        stock: '',
+    });
+    const [images, setImages] = useState<string[]>([]); // up to 5 base64 or URL strings
+    const [loading, setLoading] = useState(false);
+    const [fetching, setFetching] = useState(true);
+
+    useEffect(() => {
+        fetchProduct();
+    }, [id]);
+
+    const fetchProduct = async () => {
+        try {
+            const response = await api.get(`/products/${id}`);
+            const p = response.data;
+            setFormData({
+                name: p.name || '',
+                description: p.description || '',
+                price: String(p.price || ''),
+                category: p.category || 'Compost',
+                stock: String(p.stock || ''),
+            });
+            // image_url can be a JSON array or a single string
+            if (p.image_url) {
+                try {
+                    const parsed = JSON.parse(p.image_url);
+                    setImages(Array.isArray(parsed) ? parsed : [p.image_url]);
+                } catch {
+                    setImages([p.image_url]);
+                }
+            }
+        } catch {
+            toast.error('Produit introuvable');
+            navigate('/dashboard/products');
+        } finally {
+            setFetching(false);
+        }
+    };
+
+    const handleImageAdd = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const files = Array.from(e.target.files || []);
+        if (images.length + files.length > MAX_PHOTOS) {
+            toast.error(`Maximum ${MAX_PHOTOS} photos autorisées`);
+            return;
+        }
+        files.forEach(file => {
+            if (file.size > 3 * 1024 * 1024) {
+                toast.error(`${file.name} est trop lourd (max 3MB)`);
+                return;
+            }
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setImages(prev => [...prev, reader.result as string]);
+            };
+            reader.readAsDataURL(file);
+        });
+        // Reset input so same file can be re-added if removed
+        e.target.value = '';
+    };
+
+    const handleRemoveImage = (index: number) => {
+        setImages(prev => prev.filter((_, i) => i !== index));
+    };
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!formData.name || !formData.price || !formData.stock) {
+            toast.error('Veuillez remplir tous les champs obligatoires');
+            return;
+        }
+        setLoading(true);
+        try {
+            // Store multiple images as JSON array, single image as string for compatibility
+            const image_url = images.length === 0
+                ? ''
+                : images.length === 1
+                    ? images[0]
+                    : JSON.stringify(images);
+
+            await api.put(`/products/${id}`, {
+                ...formData,
+                price: Number(formData.price),
+                stock: Number(formData.stock),
+                image_url,
+            });
+            toast.success('Produit mis à jour avec succès !');
+            navigate('/dashboard/products');
+        } catch (error: any) {
+            toast.error(error.response?.data?.message || 'Erreur lors de la mise à jour');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    if (fetching) {
+        return (
+            <div className="p-8 max-w-4xl mx-auto">
+                <div className="space-y-4 animate-pulse">
+                    <div className="h-10 bg-gray-100 rounded-xl w-1/3" />
+                    <div className="h-96 bg-gray-100 rounded-3xl" />
+                </div>
+            </div>
+        );
+    }
+
+    return (
+        <div className="p-6 md:p-8 max-w-4xl mx-auto">
+            {/* Header */}
+            <div className="flex items-center gap-4 mb-8">
+                <button onClick={() => navigate('/dashboard/products')}
+                        className="p-2 hover:bg-gray-100 rounded-xl transition-all text-gray-500 hover:text-gray-900">
+                    <ArrowLeft size={22} />
+                </button>
+                <div>
+                    <h1 className="text-3xl font-black text-gray-900">Modifier le Produit</h1>
+                    <p className="text-gray-500 text-sm mt-0.5">Les modifications seront soumises à validation.</p>
+                </div>
+            </div>
+
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
+                        className="bg-white rounded-3xl shadow-sm border border-gray-100 p-8">
+                <form onSubmit={handleSubmit} className="space-y-6">
+
+                    {/* Name */}
+                    <div>
+                        <label className="block text-sm font-bold text-gray-700 mb-2">
+                            Nom du Produit <span className="text-red-400">*</span>
+                        </label>
+                        <div className="relative">
+                            <Package className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                            <input type="text" required value={formData.name}
+                                   onChange={e => setFormData({ ...formData, name: e.target.value })}
+                                   className="w-full pl-11 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-emerald-500 outline-none transition-all"
+                                   placeholder="Ex: Compost Premium 50kg" />
+                        </div>
+                    </div>
+
+                    {/* Description */}
+                    <div>
+                        <label className="block text-sm font-bold text-gray-700 mb-2">
+                            Description <span className="text-red-400">*</span>
+                        </label>
+                        <div className="relative">
+                            <Info className="absolute left-4 top-3.5 text-gray-400" size={18} />
+                            <textarea required rows={4} value={formData.description}
+                                      onChange={e => setFormData({ ...formData, description: e.target.value })}
+                                      className="w-full pl-11 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-emerald-500 outline-none transition-all resize-none"
+                                      placeholder="Décrivez les bienfaits et la composition..." />
+                        </div>
+                    </div>
+
+                    {/* Price + Stock */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                        <div>
+                            <label className="block text-sm font-bold text-gray-700 mb-2">
+                                Prix (Ar) <span className="text-red-400">*</span>
+                            </label>
+                            <div className="relative">
+                                <DollarSign className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                                <input type="number" required min="0" value={formData.price}
+                                       onChange={e => setFormData({ ...formData, price: e.target.value })}
+                                       className="w-full pl-11 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-emerald-500 outline-none transition-all"
+                                       placeholder="50000" />
+                            </div>
+                        </div>
+                        <div>
+                            <label className="block text-sm font-bold text-gray-700 mb-2">
+                                Stock <span className="text-red-400">*</span>
+                            </label>
+                            <div className="relative">
+                                <Layers className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                                <input type="number" required min="0" value={formData.stock}
+                                       onChange={e => setFormData({ ...formData, stock: e.target.value })}
+                                       className="w-full pl-11 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-emerald-500 outline-none transition-all"
+                                       placeholder="100" />
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Category */}
+                    <div>
+                        <label className="block text-sm font-bold text-gray-700 mb-2">Catégorie</label>
+                        <div className="relative">
+                            <Tag className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                            <select value={formData.category}
+                                    onChange={e => setFormData({ ...formData, category: e.target.value })}
+                                    className="w-full pl-11 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-emerald-500 outline-none transition-all appearance-none">
+                                {categories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                            </select>
+                        </div>
+                    </div>
+
+                    {/* Photos */}
+                    <div>
+                        <div className="flex items-center justify-between mb-2">
+                            <label className="text-sm font-bold text-gray-700">
+                                Photos du produit
+                                <span className="text-gray-400 font-normal ml-2">({images.length}/{MAX_PHOTOS})</span>
+                            </label>
+                            <span className="text-xs text-gray-400">Min 1 recommandée · Max 5 · 3MB par photo</span>
+                        </div>
+
+                        {/* Image Grid */}
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 mb-3">
+                            {images.map((img, index) => (
+                                <div key={index} className="relative aspect-square rounded-2xl overflow-hidden border border-gray-200 group">
+                                    <img src={img} alt={`Photo ${index + 1}`} className="w-full h-full object-cover" />
+                                    {index === 0 && (
+                                        <div className="absolute top-1.5 left-1.5 bg-emerald-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">
+                                            Principale
+                                        </div>
+                                    )}
+                                    <button type="button" onClick={() => handleRemoveImage(index)}
+                                            className="absolute top-1.5 right-1.5 w-6 h-6 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all shadow-md">
+                                        <X size={12} />
+                                    </button>
+                                </div>
+                            ))}
+
+                            {/* Add button */}
+                            {images.length < MAX_PHOTOS && (
+                                <label className="aspect-square rounded-2xl border-2 border-dashed border-gray-200 hover:border-emerald-300 hover:bg-emerald-50 flex flex-col items-center justify-center cursor-pointer transition-all group">
+                                    <Plus size={22} className="text-gray-300 group-hover:text-emerald-500 transition-colors mb-1" />
+                                    <span className="text-xs text-gray-400 group-hover:text-emerald-600 transition-colors">Ajouter</span>
+                                    <input type="file" accept="image/*" multiple className="hidden"
+                                           onChange={handleImageAdd} />
+                                </label>
+                            )}
+                        </div>
+
+                        {images.length === 0 && (
+                            <label className="flex flex-col items-center justify-center w-full h-32 bg-gray-50 border-2 border-dashed border-gray-200 rounded-2xl hover:border-emerald-300 hover:bg-emerald-50 cursor-pointer transition-all group">
+                                <Upload size={28} className="text-gray-300 group-hover:text-emerald-500 mb-2 transition-colors" />
+                                <span className="text-sm font-semibold text-gray-400 group-hover:text-emerald-600 transition-colors">
+                  Cliquez pour ajouter des photos
+                </span>
+                                <span className="text-xs text-gray-300 mt-1">Jusqu'à 5 photos · JPG, PNG · 3MB max</span>
+                                <input type="file" accept="image/*" multiple className="hidden" onChange={handleImageAdd} />
+                            </label>
+                        )}
+                    </div>
+
+                    {/* Warning */}
+                    <div className="p-4 bg-amber-50 border border-amber-100 rounded-2xl flex items-start gap-3">
+                        <AlertCircle className="text-amber-600 flex-shrink-0 mt-0.5" size={18} />
+                        <p className="text-sm text-amber-800">
+                            Après modification, votre produit sera soumis à validation par un administrateur avant d'être visible sur la marketplace.
+                        </p>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex gap-3 pt-2">
+                        <button type="button" onClick={() => navigate('/dashboard/products')}
+                                className="flex-1 border border-gray-200 hover:bg-gray-50 text-gray-700 font-bold py-3.5 rounded-2xl transition-all">
+                            Annuler
+                        </button>
+                        <button type="submit" disabled={loading}
+                                className="flex-1 bg-gray-900 hover:bg-gray-800 text-white font-bold py-3.5 rounded-2xl transition-all flex items-center justify-center gap-2 disabled:opacity-50 shadow-xl">
+                            {loading
+                                ? <><div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Enregistrement...</>
+                                : <><Save size={18} /> Enregistrer les modifications</>
+                            }
+                        </button>
+                    </div>
+                </form>
+            </motion.div>
+        </div>
+    );
+};
+
+export default EditProduct;

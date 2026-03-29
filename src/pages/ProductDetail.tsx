@@ -21,6 +21,15 @@ interface Product {
   created_at: string;
 }
 
+const getProductImages = (image_url: string, id: number): string[] => {
+  if (!image_url) return [`https://picsum.photos/seed/${id}/800/800`];
+  try {
+    const parsed = JSON.parse(image_url);
+    if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+  } catch {}
+  return [image_url];
+};
+
 interface Review {
   id: number;
   user_id: number;
@@ -39,6 +48,7 @@ const ProductDetail: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [quantity, setQuantity] = useState(1);
   const [addingToCart, setAddingToCart] = useState(false);
+  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
 
   useEffect(() => { fetchProduct(); }, [id]);
 
@@ -125,20 +135,46 @@ const ProductDetail: React.FC = () => {
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
 
-            {/* Image */}
+            {/* Image Gallery */}
             <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}>
-              <div className="aspect-square rounded-3xl overflow-hidden bg-white shadow-xl border border-gray-100 relative">
-                <img
-                    src={product.image_url || `https://picsum.photos/seed/${product.id}/800/800`}
-                    alt={product.name}
-                    className="w-full h-full object-cover"
-                />
-                {product.stock === 0 && (
-                    <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                      <span className="bg-red-500 text-white font-black px-6 py-3 rounded-2xl text-lg">Rupture de stock</span>
+              {(() => {
+                const productImages = getProductImages(product.image_url, product.id);
+                return (
+                    <div className="space-y-3">
+                      {/* Main image */}
+                      <div className="aspect-square rounded-3xl overflow-hidden bg-white shadow-xl border border-gray-100 relative">
+                        <img
+                            src={productImages[selectedImageIndex]}
+                            alt={product.name}
+                            className="w-full h-full object-cover transition-all duration-300"
+                        />
+                        {product.stock === 0 && (
+                            <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                              <span className="bg-red-500 text-white font-black px-6 py-3 rounded-2xl text-lg">Rupture de stock</span>
+                            </div>
+                        )}
+                        {productImages.length > 1 && (
+                            <div className="absolute bottom-3 right-3 bg-black/50 text-white text-xs font-bold px-2.5 py-1 rounded-full">
+                              {selectedImageIndex + 1} / {productImages.length}
+                            </div>
+                        )}
+                      </div>
+                      {/* Thumbnails */}
+                      {productImages.length > 1 && (
+                          <div className="flex gap-2 overflow-x-auto pb-1">
+                            {productImages.map((img, i) => (
+                                <button key={i} onClick={() => setSelectedImageIndex(i)}
+                                        className={`flex-shrink-0 w-16 h-16 rounded-xl overflow-hidden border-2 transition-all ${
+                                            i === selectedImageIndex ? 'border-emerald-500 shadow-md' : 'border-gray-200 hover:border-gray-300 opacity-70 hover:opacity-100'
+                                        }`}>
+                                  <img src={img} alt={`Photo ${i+1}`} className="w-full h-full object-cover" />
+                                </button>
+                            ))}
+                          </div>
+                      )}
                     </div>
-                )}
-              </div>
+                );
+              })()}
             </motion.div>
 
             {/* Info */}
