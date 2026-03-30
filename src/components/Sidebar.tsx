@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Package, ShoppingBag, Users, MessageSquare, Settings, PlusCircle, CheckCircle, BarChart3, Leaf, ArrowRight } from 'lucide-react';
+import { LayoutDashboard, Package, ShoppingBag, Users, MessageSquare, Settings, PlusCircle, CheckCircle, BarChart3, Leaf, ArrowRight, Zap } from 'lucide-react';
 import { useAuth } from '../context/AuthContext.tsx';
 
 const Sidebar: React.FC = () => {
@@ -8,25 +8,26 @@ const Sidebar: React.FC = () => {
   const location = useLocation();
 
   const menuItems = [
-    { icon: LayoutDashboard, label: 'Tableau de bord', path: '/dashboard', roles: ['Agriculteur', 'Producteur', 'Fournisseur', 'Acheteur', 'Administrateur'] },
-    { icon: Package, label: 'Mes Produits', path: '/dashboard/products', roles: ['Producteur', 'Fournisseur'] },
-    { icon: PlusCircle, label: 'Publier un produit', path: '/dashboard/products/new', roles: ['Producteur', 'Fournisseur'] },
-    { icon: ShoppingBag, label: 'Mes Commandes', path: '/dashboard/orders', roles: ['Acheteur', 'Agriculteur', 'Producteur', 'Fournisseur'] },
-    { icon: MessageSquare, label: 'Messagerie', path: '/messages', roles: ['Agriculteur', 'Producteur', 'Fournisseur', 'Acheteur', 'Administrateur'] },
-    { icon: Users, label: 'Utilisateurs', path: '/admin/users', roles: ['Administrateur'] },
-    { icon: CheckCircle, label: 'Approbations', path: '/admin/approvals', roles: ['Administrateur'] },
-    { icon: BarChart3, label: 'Statistiques', path: '/admin/stats', roles: ['Administrateur'] },
-    { icon: Settings, label: 'Mon Profil', path: '/profile', roles: ['Agriculteur', 'Producteur', 'Fournisseur', 'Acheteur', 'Administrateur'] },
+    { icon: LayoutDashboard, label: 'Tableau de bord',   path: '/dashboard',             roles: ['Agriculteur', 'Producteur', 'Fournisseur', 'Acheteur', 'Administrateur'] },
+    { icon: Package,         label: 'Mes Produits',       path: '/dashboard/products',    roles: ['Producteur', 'Fournisseur'] },
+    { icon: PlusCircle,      label: 'Publier un produit', path: '/dashboard/products/new',roles: ['Producteur', 'Fournisseur'] },
+    { icon: ShoppingBag,     label: 'Mes Commandes',      path: '/dashboard/orders',      roles: ['Acheteur', 'Agriculteur', 'Producteur', 'Fournisseur'] },
+    { icon: MessageSquare,   label: 'Messagerie',         path: '/messages',              roles: ['Agriculteur', 'Producteur', 'Fournisseur', 'Acheteur', 'Administrateur'] },
+    { icon: Users,           label: 'Utilisateurs',       path: '/admin/users',           roles: ['Administrateur'] },
+    { icon: CheckCircle,     label: 'Approbations',       path: '/admin/approvals',       roles: ['Administrateur'] },
+    { icon: BarChart3,       label: 'Statistiques',       path: '/admin/stats',           roles: ['Administrateur'] },
+    { icon: Zap,             label: 'IA & Clés API',      path: '/admin/ai',              roles: ['Administrateur'] },
+    { icon: Settings,        label: 'Mon Profil',         path: '/profile',               roles: ['Agriculteur', 'Producteur', 'Fournisseur', 'Acheteur', 'Administrateur'] },
   ];
 
   const filteredItems = menuItems.filter(item => item.roles.includes(user?.role || ''));
 
   const roleGradients: Record<string, string> = {
     Administrateur: 'from-red-400 to-rose-500',
-    Producteur: 'from-emerald-400 to-teal-500',
-    Fournisseur: 'from-blue-400 to-indigo-500',
-    Agriculteur: 'from-amber-400 to-orange-500',
-    Acheteur: 'from-purple-400 to-violet-500',
+    Producteur:     'from-emerald-400 to-teal-500',
+    Fournisseur:    'from-blue-400 to-indigo-500',
+    Agriculteur:    'from-amber-400 to-orange-500',
+    Acheteur:       'from-purple-400 to-violet-500',
   };
   const gradient = roleGradients[user?.role || ''] || 'from-emerald-400 to-teal-500';
 
@@ -52,15 +53,18 @@ const Sidebar: React.FC = () => {
         <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3 px-2">Navigation</p>
         {filteredItems.map(item => {
           const isActive = location.pathname === item.path;
+          const isAI = item.path === '/admin/ai';
           return (
             <Link key={item.path} to={item.path}
               className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group ${
                 isActive ? 'bg-gray-900 text-white' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
               }`}>
               <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all ${
-                isActive ? 'bg-white/20' : 'bg-gray-100 group-hover:bg-gray-200'
+                isActive ? 'bg-white/20' : isAI ? 'bg-emerald-100' : 'bg-gray-100 group-hover:bg-gray-200'
               }`}>
-                <item.icon size={16} className={isActive ? 'text-white' : 'text-gray-500 group-hover:text-gray-700'} />
+                <item.icon size={16} className={
+                  isActive ? 'text-white' : isAI ? 'text-emerald-600' : 'text-gray-500 group-hover:text-gray-700'
+                } />
               </div>
               <span className="text-sm font-semibold flex-1">{item.label}</span>
               {isActive && <ArrowRight size={13} className="text-emerald-400" />}

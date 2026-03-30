@@ -6,7 +6,9 @@ import * as forumController from '../controllers/forumController.ts';
 import * as messageController from '../controllers/messageController.ts';
 import * as adminController from '../controllers/adminController.ts';
 import * as notificationController from '../controllers/notificationController.ts';
+import * as aiController from '../controllers/aiController.ts';
 import { authenticateToken, authorizeRoles } from '../middleware/auth.ts';
+import { authenticateApiKey, createApiKey, listApiKeys, revokeApiKey } from '../middleware/apiKey.ts';
 import { validate } from '../middleware/validate.ts';
 import { registerSchema, loginSchema, productSchema } from '../schemas/auth.ts';
 
@@ -46,6 +48,21 @@ router.post('/messages', authenticateToken, messageController.sendMessage);
 // Notifications
 router.get('/notifications', authenticateToken, notificationController.getMyNotifications);
 router.put('/notifications/read-all', authenticateToken, notificationController.markAllRead);
+
+// ── IA — Chatbot interne (JWT requis) ─────────────────────────
+router.post('/ai/chat', authenticateToken, aiController.chat);
+
+// ── IA — API publique vendable (API key requise) ───────────────
+router.post('/ai/query', authenticateApiKey, aiController.query);
+
+// ── IA — Admin knowledge base ────────────────────────────────
+router.get('/ai/kb/stats',  authenticateToken, authorizeRoles('Administrateur'), aiController.kbStats);
+router.get('/ai/kb/search', authenticateToken, authorizeRoles('Administrateur'), aiController.kbSearch);
+
+// ── IA — Gestion des clés API (admin) ─────────────────────────
+router.post('/admin/ai/keys',         authenticateToken, authorizeRoles('Administrateur'), createApiKey);
+router.get('/admin/ai/keys',          authenticateToken, authorizeRoles('Administrateur'), listApiKeys);
+router.delete('/admin/ai/keys/:id',   authenticateToken, authorizeRoles('Administrateur'), revokeApiKey);
 
 // Admin
 router.get('/admin/users', authenticateToken, authorizeRoles('Administrateur'), adminController.getAllUsers);

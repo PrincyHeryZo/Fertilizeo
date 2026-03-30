@@ -5,6 +5,7 @@ import { NotificationProvider } from './context/NotificationContext.tsx';
 import { Toaster } from 'react-hot-toast';
 import Navbar from './components/Navbar.tsx';
 import Sidebar from './components/Sidebar.tsx';
+import ChatBot from './components/ChatBot.tsx';
 import Home from './pages/Home.tsx';
 import Login from './pages/Login.tsx';
 import Register from './pages/Register.tsx';
@@ -23,6 +24,7 @@ import Notifications from './pages/Notifications.tsx';
 import AdminUsers from './pages/AdminUsers.tsx';
 import AdminApprovals from './pages/AdminApprovals.tsx';
 import AdminStats from './pages/AdminStats.tsx';
+import AdminAIKeys from './pages/AdminAIKeys.tsx';
 
 const PrivateRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const { token, loading } = useAuth();
@@ -52,6 +54,8 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                 {token && isDashboardPage && <Sidebar />}
                 <main className="flex-1 min-w-0">{children}</main>
             </div>
+            {/* ChatBot flottant — visible sur toutes les pages si connecté */}
+            <ChatBot />
             <Toaster
                 position="top-right"
                 toastOptions={{ style: { borderRadius: '16px', fontWeight: '600', fontSize: '14px' } }}
@@ -85,9 +89,12 @@ export default function App() {
                             <Route path="/profile" element={<PrivateRoute><Profile /></PrivateRoute>} />
                             <Route path="/cart" element={<PrivateRoute><Cart /></PrivateRoute>} />
                             <Route path="/notifications" element={<PrivateRoute><Notifications /></PrivateRoute>} />
+
+                            {/* Admin routes */}
                             <Route path="/admin/users" element={<PrivateRoute><AdminUsers /></PrivateRoute>} />
                             <Route path="/admin/approvals" element={<PrivateRoute><AdminApprovals /></PrivateRoute>} />
                             <Route path="/admin/stats" element={<PrivateRoute><AdminStats /></PrivateRoute>} />
+                            <Route path="/admin/ai" element={<PrivateRoute><AdminAIKeys /></PrivateRoute>} />
 
                             <Route path="*" element={<Navigate to="/" replace />} />
                         </Routes>

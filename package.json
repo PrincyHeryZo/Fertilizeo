@@ -9,10 +9,16 @@
     "build": "vite build",
     "preview": "vite preview",
     "clean": "rm -rf dist",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "collect": "tsx scripts/collect-knowledge.ts",
+    "collect:expert": "tsx scripts/collect-knowledge.ts --source=expert",
+    "collect:npk": "tsx scripts/collect-knowledge.ts --source=npk",
+    "collect:fao": "tsx scripts/collect-knowledge.ts --source=fao",
+    "collect:dry": "tsx scripts/collect-knowledge.ts --dry-run"
   },
   "dependencies": {
     "@google/genai": "^1.29.0",
+    "@libsql/client": "^0.17.2",
     "@tailwindcss/vite": "^4.1.14",
     "@types/bcryptjs": "^2.4.6",
     "@types/cors": "^2.8.19",
