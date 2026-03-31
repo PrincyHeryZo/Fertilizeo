@@ -14,7 +14,19 @@
     "collect:expert": "tsx scripts/collect-knowledge.ts --source=expert",
     "collect:npk": "tsx scripts/collect-knowledge.ts --source=npk",
     "collect:fao": "tsx scripts/collect-knowledge.ts --source=fao",
-    "collect:dry": "tsx scripts/collect-knowledge.ts --dry-run"
+    "collect:dry": "tsx scripts/collect-knowledge.ts --dry-run",
+    "collect:agris": "tsx scripts/collect-knowledge.ts --source=agris",
+    "collect:cgiar": "tsx scripts/collect-knowledge.ts --source=cgiar",
+    "collect:all": "tsx scripts/collect-knowledge.ts",
+    "collect:groq": "tsx scripts/collect-groq-harvest.ts",
+    "collect:groq:madagascar": "tsx scripts/collect-groq-harvest.ts --batch=madagascar",
+    "collect:groq:compost": "tsx scripts/collect-groq-harvest.ts --batch=compost",
+    "collect:groq:pisciculture": "tsx scripts/collect-groq-harvest.ts --batch=pisciculture",
+    "collect:groq:apiculture": "tsx scripts/collect-groq-harvest.ts --batch=apiculture",
+    "collect:groq:sahel": "tsx scripts/collect-groq-harvest.ts --batch=sahel",
+    "collect:groq:cultures": "tsx scripts/collect-groq-harvest.ts --batch=cultures",
+    "collect:groq:dry": "tsx scripts/collect-groq-harvest.ts --dry-run",
+    "collect:groq:test": "tsx scripts/collect-groq-harvest.ts --limit=5"
   },
   "dependencies": {
     "@google/genai": "^1.29.0",

@@ -28,8 +28,8 @@
  * ============================================================
  */
 
-import { turso } from '../database/turso.ts';
-import dotenv from 'dotenv';
+import { turso } from '../database/turso';
+import * as dotenv from 'dotenv';
 import { randomUUID } from 'crypto';
 
 dotenv.config();
@@ -927,7 +927,7 @@ const NPK_DATASET = [
   { name: 'Pulpe de café compostée',   cat: 'culture',        N: 2.30, P: 0.50, K: 2.80, organic_matter: 45, pH: 6.0, region: 'Afrique de l\'Est', note: 'Meilleur amendement pour caféier. 10-15 kg/arbre/an.' },
   { name: 'Fumier petit ruminant',     cat: 'fumier',         N: 1.20, P: 0.60, K: 0.90, moisture: 35, pH: 7.5, region: 'Afrique de l\'Ouest Sahel', note: 'Mouton, chèvre. Plus concentré que bovins. Zaï : 250-300g/poquet.' },
   { name: 'Terre de termitière',       cat: 'technique',      N: 0.15, P: 0.20, K: 0.30, organic_matter: 8, pH: 7.8, region: 'Afrique tropicale', note: 'Riche en minéraux et microorganismes. Ajouter 500g/zaï ou 200 kg/ha.' },
-] as const;
+];
 
 // =============================================================
 // SECTION 3 — FAO TECA (API gratuite)
@@ -1029,6 +1029,178 @@ function log(icon: string, msg: string, detail?: string) {
   console.log(`${C.dim(new Date().toLocaleTimeString('fr-FR'))} ${icon}  ${msg}${detail ? C.dim(' — ' + detail) : ''}`);
 }
 
+
+// =============================================================
+// SECTION 4 — AGRIS FAO (API officielle gratuite)
+// =============================================================
+
+const AGRIS_QUERIES = [
+  'organic fertilizer tropical soil',
+  'compost manure crop production Africa',
+  'vermicompost earthworm vermiculture tropical',
+  'bokashi fermentation soil amendment',
+  'green manure cover crop nitrogen',
+  'tilapia aquaculture pond management',
+  'aquaponics integrated fish vegetable',
+  'beekeeping honeybee Africa pollination',
+  'agroforestry soil fertility Madagascar',
+  'rice organic fertilization lowland',
+  'maize intercropping legume Africa',
+  'biochar soil amendment tropical',
+  'integrated soil fertility management smallholder',
+  'coffee arabica organic production Ethiopia',
+  'cocoa agroforestry West Africa organic',
+];
+
+async function fetchAgris(query: string): Promise<{ title: string; content: string; link: string }[]> {
+  try {
+    const url = `https://agris.fao.org/agris-search/search.do?query=${encodeURIComponent(query)}&startRecord=1&maximumRecords=3&outputFormat=json`;
+    const res = await fetch(url, {
+      headers: { 'Accept': 'application/json', 'User-Agent': 'FertilizeoBot/1.0' },
+      signal: AbortSignal.timeout(12000),
+    });
+    if (!res.ok) return [];
+    const data = await res.json() as any;
+    const records = data['ags:resources']?.['ags:resource'] || [];
+    const arr = Array.isArray(records) ? records : [records];
+    return arr.map((r: any) => ({
+      title: r['dc:title'] || r['dcterms:title'] || 'AGRIS Record',
+      content: [
+        r['dc:description'] || r['dcterms:abstract'] || '',
+        r['dc:subject'] ? 'Sujets: ' + (Array.isArray(r['dc:subject']) ? r['dc:subject'].join(', ') : r['dc:subject']) : '',
+      ].filter(Boolean).join('\n').substring(0, 2000),
+      link: r['ags:linkingIdentifierURL'] || '',
+    })).filter((r: any) => r.content.length > 80);
+  } catch { return []; }
+}
+
+async function collectAgris() {
+  log('📚', C.bold('=== AGRIS FAO (publications scientifiques) ==='));
+  let saved = 0, skipped = 0, failed = 0;
+  for (const q of AGRIS_QUERIES) {
+    log('🔍', `AGRIS: "${q}"`);
+    const records = await fetchAgris(q);
+    if (records.length === 0) { failed++; await sleep(800); continue; }
+    for (const rec of records) {
+      if (rec.content.length < 80) continue;
+      const category = detectCategory(q);
+      log('🤖', `Groq: "${rec.title.substring(0, 50)}"`);
+      const structured = await structureWithGroq(rec.title, rec.content, category);
+      const result = await saveToTurso({
+        title: `AGRIS : ${rec.title.substring(0, 120)}`,
+        content: rec.content,
+        category,
+        source: 'agris_fao',
+        region: detectRegion(q),
+        structured,
+      });
+      if (result === 'saved') { saved++; log('✅', C.green(rec.title.substring(0, 55))); }
+      else skipped++;
+      await sleep(DELAY_MS);
+    }
+    await sleep(1200);
+  }
+  console.log(`   ${C.green(saved + ' sauvegardés')}, ${skipped} déjà présents, ${failed} sources inaccessibles\n`);
+  return { saved };
+}
+
+// =============================================================
+// SECTION 5 — CGIAR CGSpace (recherche agricole Afrique)
+// =============================================================
+
+const CGIAR_QUERIES = [
+  { q: 'organic fertilizer Africa soil health', subject: 'compost' },
+  { q: 'tilapia smallholder aquaculture Africa', subject: 'pisciculture' },
+  { q: 'agroforestry soil fertility Sub-Saharan Africa', subject: 'technique' },
+  { q: 'integrated pest management organic Africa', subject: 'culture' },
+  { q: 'rice production Madagascar lowland', subject: 'culture' },
+  { q: 'green manure legume tropical Africa', subject: 'engrais_vert' },
+  { q: 'biochar soil carbon Africa', subject: 'technique' },
+  { q: 'beekeeping pollination crop Africa', subject: 'apiculture' },
+  { q: 'bokashi lacto-fermentation waste', subject: 'bokashi' },
+  { q: 'moringa organic nutrition Africa', subject: 'biofertilisant' },
+];
+
+async function fetchCgiar(query: string): Promise<{ title: string; content: string }[]> {
+  try {
+    const url = `https://cgspace.cgiar.org/rest/items/find-by-metadata-value?key=dc.subject&value=${encodeURIComponent(query)}&limit=3`;
+    const res = await fetch(url, {
+      headers: { 'Accept': 'application/json', 'User-Agent': 'FertilizeoBot/1.0' },
+      signal: AbortSignal.timeout(12000),
+    });
+    if (!res.ok) {
+      // Fallback: use search endpoint
+      const url2 = `https://cgspace.cgiar.org/rest/discover?query=${encodeURIComponent(query)}&limit=3&scope=agriculture`;
+      const res2 = await fetch(url2, { headers: { 'Accept': 'application/json' }, signal: AbortSignal.timeout(10000) });
+      if (!res2.ok) return [];
+      const data2 = await res2.json() as any;
+      const items = data2.items || data2.results || [];
+      return items.slice(0, 3).map((item: any) => ({
+        title: item.name || item.metadata?.find((m: any) => m.key === 'dc.title.en_US')?.value || 'CGIAR Research',
+        content: item.metadata?.find((m: any) => m.key === 'dc.description.abstract')?.value?.substring(0, 2000) || '',
+      })).filter((r: any) => r.content.length > 80);
+    }
+    const data = await res.json() as any;
+    const items = Array.isArray(data) ? data : [];
+    return items.slice(0, 3).map((item: any) => ({
+      title: item.name || 'CGIAR Research',
+      content: (item.metadata?.find((m: any) => m.key === 'dc.description.abstract')?.value || '').substring(0, 2000),
+    })).filter((r: any) => r.content.length > 80);
+  } catch { return []; }
+}
+
+async function collectCgiar() {
+  log('🎓', C.bold('=== CGIAR CGSpace (recherche agricole Afrique) ==='));
+  let saved = 0, skipped = 0, failed = 0;
+  for (const { q, subject } of CGIAR_QUERIES) {
+    log('🔍', `CGIAR: "${q}"`);
+    const records = await fetchCgiar(q);
+    if (records.length === 0) { failed++; await sleep(800); continue; }
+    for (const rec of records) {
+      if (rec.content.length < 80) continue;
+      log('🤖', `Groq: "${rec.title.substring(0, 50)}"`);
+      const structured = await structureWithGroq(rec.title, rec.content, subject);
+      const result = await saveToTurso({
+        title: `CGIAR : ${rec.title.substring(0, 120)}`,
+        content: rec.content,
+        category: subject,
+        source: 'cgiar',
+        region: detectRegion(q),
+        structured,
+      });
+      if (result === 'saved') { saved++; log('✅', C.green(rec.title.substring(0, 55))); }
+      else skipped++;
+      await sleep(DELAY_MS);
+    }
+    await sleep(1200);
+  }
+  console.log(`   ${C.green(saved + ' sauvegardés')}, ${skipped} déjà présents, ${failed} sources inaccessibles\n`);
+  return { saved };
+}
+
+// ─── Helpers pour catégorie/région ───────────────────────────
+
+function detectCategory(query: string): string {
+  const q = query.toLowerCase();
+  if (/tilapia|aquapon|fish|pond|cage/.test(q)) return 'pisciculture';
+  if (/bee|honey|hive|pollina/.test(q)) return 'apiculture';
+  if (/compost|manure|bokashi|vermi/.test(q)) return 'compost';
+  if (/green manure|cover crop|legume/.test(q)) return 'engrais_vert';
+  if (/biofertili|moringa|biostimul/.test(q)) return 'biofertilisant';
+  if (/rice|maize|corn|coffee|cocoa|crop/.test(q)) return 'culture';
+  if (/biochar|soil|zai|agroforest/.test(q)) return 'technique';
+  return 'technique';
+}
+
+function detectRegion(query: string): string {
+  const q = query.toLowerCase();
+  if (/madagascar/.test(q)) return 'Madagascar';
+  if (/ethiopia|kenya|east africa/.test(q)) return "Afrique de l'Est";
+  if (/west africa|ghana|ivory coast|cacao/.test(q)) return "Afrique de l'Ouest";
+  if (/sahel|burkina|mali|niger/.test(q)) return 'Sahel';
+  return 'Afrique tropicale';
+}
+
 async function saveToTurso(params: { title: string; content: string; category: string; source: string; region: string; structured: any }): Promise<'saved' | 'skipped' | 'error'> {
   if (DRY_RUN) { log('🔵', `[DRY-RUN] "${params.title}"`); return 'saved'; }
   const slug = slugify(params.title);
@@ -1038,16 +1210,16 @@ async function saveToTurso(params: { title: string; content: string; category: s
     const kbId = randomUUID();
     const s = params.structured || {};
     await turso.run('INSERT INTO knowledge_base (id, title, slug, category, source, language, content_raw) VALUES (?, ?, ?, ?, ?, ?, ?)',
-      [kbId, params.title, slug, params.category, params.source, 'fr', params.content]);
+        [kbId, params.title, slug, params.category, params.source, 'fr', params.content]);
     const chunks = chunkText(params.content);
     for (let i = 0; i < chunks.length; i++)
       await turso.run('INSERT INTO knowledge_chunks (id, knowledge_id, chunk_index, content) VALUES (?, ?, ?, ?)', [randomUUID(), kbId, i, chunks[i]]);
     await turso.run(
-      `INSERT INTO knowledge_structured (id, knowledge_id, fertilizer_name, ingredients, steps, tips, mistakes, duration, npk_ratio, best_for_crops, climate, region, difficulty, cost)
+        `INSERT INTO knowledge_structured (id, knowledge_id, fertilizer_name, ingredients, steps, tips, mistakes, duration, npk_ratio, best_for_crops, climate, region, difficulty, cost)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [randomUUID(), kbId, s.fertilizer_name || params.title, JSON.stringify(s.ingredients || []), JSON.stringify(s.steps || []),
-       JSON.stringify(s.tips || []), JSON.stringify(s.mistakes || []), s.duration || 'variable', s.npk_ratio || 'inconnu',
-       JSON.stringify(s.best_for_crops || []), s.climate || 'tous', params.region, s.difficulty || 'moyen', s.cost || 'variable']);
+        [randomUUID(), kbId, s.fertilizer_name || params.title, JSON.stringify(s.ingredients || []), JSON.stringify(s.steps || []),
+          JSON.stringify(s.tips || []), JSON.stringify(s.mistakes || []), s.duration || 'variable', s.npk_ratio || 'inconnu',
+          JSON.stringify(s.best_for_crops || []), s.climate || 'tous', params.region, s.difficulty || 'moyen', s.cost || 'variable']);
     return 'saved';
   } catch (err) { log('❌', `DB error "${params.title}"`, String(err).substring(0, 80)); return 'error'; }
 }
@@ -1138,7 +1310,7 @@ async function printStats() {
 
 async function main() {
   console.log('\n' + C.bold(C.green('🌱 FERTILI\'ZEO — Knowledge Base Collector v2')));
-  console.log(C.dim('Fiches expertes terrain + Dataset NPK labo + FAO TECA'));
+  console.log(C.dim('Fiches expertes terrain + Dataset NPK labo + FAO TECA + AGRIS + CGIAR'));
   if (DRY_RUN) console.log(C.yellow('\n⚠️  DRY-RUN : aucune écriture\n'));
   if (!GROQ_API_KEY) console.log(C.yellow('⚠️  GROQ_API_KEY absent : FAO TECA non structuré\n'));
   console.log('');
@@ -1146,9 +1318,11 @@ async function main() {
   const t0 = Date.now();
   let total = 0;
 
-  if (!SOURCE_FILTER || SOURCE_FILTER === 'expert') { const r = await collectExpert(); total += r.saved; }
+  if (!SOURCE_FILTER || SOURCE_FILTER === 'expert') { const r = await collectExpert();     total += r.saved; }
   if (!SOURCE_FILTER || SOURCE_FILTER === 'npk')    { const r = await collectNPKDataset(); total += r.saved; }
-  if (!SOURCE_FILTER || SOURCE_FILTER === 'fao')    { const r = await collectFao(); total += r.saved; }
+  if (!SOURCE_FILTER || SOURCE_FILTER === 'fao')    { const r = await collectFao();         total += r.saved; }
+  if (!SOURCE_FILTER || SOURCE_FILTER === 'agris')  { const r = await collectAgris();        total += r.saved; }
+  if (!SOURCE_FILTER || SOURCE_FILTER === 'cgiar')  { const r = await collectCgiar();        total += r.saved; }
 
   await printStats();
   const elapsed = ((Date.now() - t0) / 1000).toFixed(1);

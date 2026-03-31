@@ -97,6 +97,66 @@ export function detectLanguage(text: string): 'mg' | 'fr' | 'en' {
   return 'fr'; // Défaut : français
 }
 
+// ─── GUARD SUJET ─────────────────────────────────────────────
+// Vérifie si la question est dans le domaine avant d'appeler Groq
+// → économise des tokens pour les questions hors sujet
+
+const TOPIC_KEYWORDS: Record<string, string[]> = {
+  // Français
+  fr: [
+    'engrais', 'compost', 'fumier', 'bokashi', 'vermicompost', 'lombricompost',
+    'fertilisant', 'fertilisation', 'biofertilisant', 'biostimulant',
+    'sol', 'terre', 'argile', 'humus', 'ph', 'acidité', 'carence',
+    'npk', 'azote', 'phosphore', 'potassium', 'calcium', 'magnésium',
+    'plante', 'culture', 'semence', 'graine', 'semis', 'récolte', 'rendement',
+    'riz', 'maïs', 'manioc', 'haricot', 'tomate', 'légume', 'fruit',
+    'cacao', 'café', 'vanille', 'girofle', 'poivre',
+    'irrigation', 'drainage', 'mulch', 'paillage', 'rotation',
+    'pisciculture', 'poisson', 'tilapia', 'étang', 'aquaponie', 'cage',
+    'apiculture', 'abeille', 'ruche', 'miel', 'propolis', 'cire', 'pollinisation',
+    'pesticide', 'insecticide', 'fongicide', 'ravageur', 'maladie',
+    'agriculture', 'agriculteur', 'ferme', 'champ', 'parcelle',
+    'sahel', 'tropical', 'africain', 'madagascar', 'compost',
+  ],
+  // Malagasy
+  mg: [
+    'zezika', 'komposita', 'fambolena', 'voly', 'tany', 'vary', 'katsaka',
+    'mangahazo', 'voatabia', 'legioma', 'vokatra', 'famafazana', 'lehilahy',
+    'trondro', 'fiompiana', 'etangy', 'tantely', 'tanteli', 'fafana', 'tantely',
+    'ahitra', 'zavamaniry', 'hazo', 'rano', 'aina', 'biby',
+    'akoho', 'omby', 'kisoa', 'amboa', 'vorona',
+    'fanafody', 'aretin', 'valala', 'biby-kely',
+    'fifamanor', 'fofifa', 'itra', 'cirad', 'antsirabe',
+  ],
+  // Anglais
+  en: [
+    'fertilizer', 'fertiliser', 'compost', 'manure', 'bokashi', 'soil',
+    'crop', 'plant', 'seed', 'harvest', 'yield', 'farm', 'field',
+    'rice', 'maize', 'corn', 'cassava', 'bean', 'vegetable', 'fruit',
+    'cocoa', 'coffee', 'organic', 'nitrogen', 'phosphorus', 'potassium',
+    'fish', 'tilapia', 'pond', 'aquaculture', 'aquaponics',
+    'bee', 'honey', 'hive', 'apiculture', 'pollination',
+    'irrigation', 'drainage', 'mulch', 'rotation', 'pest', 'disease',
+    'agriculture', 'tropical', 'africa', 'madagascar',
+  ],
+};
+
+const OFF_TOPIC_REPLIES: Record<string, string> = {
+  fr: "Je suis FEZA, spécialiste en agriculture biologique, pisciculture et apiculture. Je ne peux pas répondre à cette question. Posez-moi une question sur les engrais, le compost, les cultures tropicales, les poissons ou les abeilles !",
+  mg: "FEZA aho, manam-pahaizana momba ny fambolena sy fiompiana. Tsy afaka mamaly an'io fanontaniana io aho. Manontania ahy momba ny zezika, komposita, trondro na tantely !",
+  en: "I am FEZA, specialist in organic farming, aquaculture and beekeeping. I cannot answer this question. Ask me about fertilizers, compost, tropical crops, fish or bees!",
+};
+
+function isOnTopic(question: string, language: 'mg' | 'fr' | 'en'): boolean {
+  const q = question.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const keywords = [
+    ...(TOPIC_KEYWORDS[language] || []),
+    ...(TOPIC_KEYWORDS['fr'] || []),  // toujours inclure FR comme base
+  ];
+  return keywords.some(kw => q.includes(kw));
+}
+
+
 // ─── PROMPTS PAR LANGUE ──────────────────────────────────────
 
 function getSystemPrompt(language: 'mg' | 'fr' | 'en', context: string): string {
@@ -120,7 +180,7 @@ FITSIPIKA LEHIBE :
 1. Ampiasao ny angona ao amin'ny knowledge base aloha. Raha hita ao ny vaovao, lazao mazava tsara (doses, fotoana, NPK).
 2. Valio FOANA amin'ny MALAGASY satria ny fanontaniana dia an'ny malagasy.
 3. Azo atao ny mampiasa teny frantsay ho an'ny teny teknika (compost, NPK, pH, etc.) saingy ny teny hafa dia malagasy.
-4. Mazava sy teknika : doses amin'ny kg/m² na t/ha, fotoana marina.
+4. FOHY sy MAZAVA : 3-5 andalana ihany. Aza manaparitaka be loatra.
 5. Raha tsy fantatrao, lazao mazava fa tsy fantatra.
 6. Ny fanontaniana tsy mifandray amin'ny fambolena : avereno amin'ny lohahevitra.`;
   }
@@ -133,10 +193,9 @@ ${kb}
 ABSOLUTE RULES:
 1. Use knowledge base data first. If the info is there, cite it precisely (doses, durations, NPK).
 2. Always respond in ENGLISH since the question is in English.
-3. Be precise and technical: doses in kg/m² or t/ha, exact durations.
-4. Structure your answer: direct response first, then steps or details if asked.
-5. If you don't know, say so clearly rather than inventing.
-6. For non-agriculture questions, politely redirect to the topic.`;
+3. Be CONCISE: 3-5 sentences max for simple questions. Use bullet points only if the user asks for steps.
+4. Give the direct answer first, then add 1-2 key details if necessary.
+5. If you don't know, say so clearly rather than inventing.`;
   }
 
   // Français (défaut)
@@ -147,22 +206,50 @@ ${kb}
 RÈGLES ABSOLUES :
 1. Utilise les données de la knowledge base en priorité. Si l'info y est, cite-la précisément (doses, durées, NPK).
 2. Réponds TOUJOURS en FRANÇAIS puisque la question est en français.
-3. Sois précis et technique : doses en kg/m² ou t/ha, durées précises.
-4. Structure ta réponse : commence par une réponse directe, puis les étapes ou détails si demandé.
-5. Si tu ne sais pas, dis-le clairement plutôt que d'inventer.
-6. Pour les questions hors agriculture/élevage/pisciculture/apiculture, redirige poliment.`;
+3. SOIS CONCIS : 3-5 phrases pour une question simple. Utilise des listes UNIQUEMENT si on te demande des étapes.
+4. Commence par la réponse directe, puis ajoute 1-2 détails clés si nécessaire.
+5. Si tu ne sais pas, dis-le clairement plutôt que d'inventer.`;
 }
 
 // ─── RECHERCHE RAG DANS TURSO ────────────────────────────────
 
-async function searchKnowledgeBase(question: string, limit = 6): Promise<RAGChunk[]> {
+// Mots liés à Madagascar/région — boost si question locale
+const MADAGASCAR_WORDS = new Set([
+  'madagascar', 'malgache', 'malagasy', 'gasy', 'vary', 'omby', 'akoho',
+  'antsirabe', 'tana', 'antananarivo', 'toamasina', 'tamatave', 'mahajanga',
+  'fianarantsoa', 'toliara', 'antsiranana', 'diego', 'vakinankaratra',
+  'fifamanor', 'fofifa', 'cirad', 'hautes terres', 'tanety', 'bas-fond',
+  'mangahazo', 'katsaka', 'voatabia', 'trondro', 'tantely',
+]);
+
+// Détecte si la question concerne Madagascar
+function isMadagascarQuestion(question: string): boolean {
+  const q = question.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  return [...MADAGASCAR_WORDS].some(w => q.includes(w));
+}
+
+// Détecte la catégorie principale demandée
+function detectCategory(question: string): string | null {
+  const q = question.toLowerCase();
+  if (/tilapia|poisson|étang|aquapon|piscicult|trondro|fiompi/.test(q)) return 'pisciculture';
+  if (/abeille|ruche|miel|apicult|propolis|cire|tantely|pollinisa/.test(q)) return 'apiculture';
+  if (/compost|vermicompost|lombri|bokashi/.test(q)) return 'compost';
+  if (/fumier|fiente|zezika|urine|guano|lisier/.test(q)) return 'fumier';
+  if (/engrais vert|couverture|mucuna|crotalaria|legumineuse/.test(q)) return 'engrais_vert';
+  if (/biofertili|biostimul|rhizobium|mycorhiz|purin/.test(q)) return 'biofertilisant';
+  if (/bokashi|ferment/.test(q)) return 'bokashi';
+  return null;
+}
+
+async function searchKnowledgeBase(
+    question: string,
+    limit = 5,
+    language: 'mg' | 'fr' | 'en' = 'fr',
+): Promise<RAGChunk[]> {
   const stopWords = new Set([
-    // Français
     'comment', 'faire', 'pour', 'avec', 'dans', 'quoi', 'quel', 'quelle',
     'est', 'une', 'les', 'des', 'que', 'qui', 'sur', 'par', 'pas', 'plus', 'aussi',
-    // Anglais
     'the', 'how', 'what', 'which', 'this', 'that', 'are', 'can', 'for', 'and',
-    // Malagasy
     'aho', 'ianao', 'izy', 'isika', 'izahay', 'hoe', 'mba', 'efa',
     'mbola', 'koa', 'anefa', 'saingy', 'satria', 'ny', 'sy', 'ho',
   ]);
@@ -172,11 +259,15 @@ async function searchKnowledgeBase(question: string, limit = 6): Promise<RAGChun
       .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
       .replace(/[^a-z0-9\s]/g, ' ')
       .split(/\s+/)
-      .filter(w => w.length > 3 && !stopWords.has(w));
+      .filter(w => w.length > 3 && !stopWords.has(w))
+      .slice(0, 6); // max 6 mots-clés pour ne pas exploser la requête
 
   if (keywords.length === 0) keywords.push(question.substring(0, 20).toLowerCase());
 
-  const likeConditions = keywords.map(() => 'LOWER(kc.content) LIKE ?').join(' OR ');
+  const isMadagascar = isMadagascarQuestion(question) || language === 'mg';
+  const targetCategory = detectCategory(question);
+
+  const likeConditions  = keywords.map(() => 'LOWER(kc.content) LIKE ?').join(' OR ');
   const titleConditions = keywords.map(() => 'LOWER(kb.title) LIKE ?').join(' OR ');
   const nameConditions  = keywords.map(() => 'LOWER(ks.fertilizer_name) LIKE ?').join(' OR ');
   const cropConditions  = keywords.map(() => 'LOWER(ks.best_for_crops) LIKE ?').join(' OR ');
@@ -196,19 +287,32 @@ async function searchKnowledgeBase(question: string, limit = 6): Promise<RAGChun
       ks.npk_ratio,
       ks.region,
       (
-          CASE WHEN (${titleConditions}) THEN 10 ELSE 0 END +
-          CASE WHEN (${likeConditions})  THEN 5  ELSE 0 END +
-          CASE WHEN ks.fertilizer_name IS NOT NULL AND (${nameConditions}) THEN 8 ELSE 0 END +
-          CASE WHEN ks.best_for_crops  IS NOT NULL AND (${cropConditions}) THEN 4 ELSE 0 END
-        ) AS score
+        -- Titre : score le plus fort (correspondance exacte au sujet)
+        CASE WHEN (${titleConditions}) THEN 12 ELSE 0 END +
+        -- Contenu du chunk
+        CASE WHEN (${likeConditions})  THEN  5 ELSE 0 END +
+        -- Nom de l'engrais/fertilisant
+        CASE WHEN ks.fertilizer_name IS NOT NULL AND (${nameConditions}) THEN 9 ELSE 0 END +
+        -- Culture cible
+        CASE WHEN ks.best_for_crops IS NOT NULL AND (${cropConditions}) THEN 5 ELSE 0 END +
+        -- Boost Madagascar si question locale ou en malagasy
+        CASE WHEN ${isMadagascar ? "ks.region LIKE '%Madagascar%'" : '0=1'} THEN 6 ELSE 0 END +
+        -- Boost catégorie détectée
+        CASE WHEN ${targetCategory ? `kb.category = '${targetCategory}'` : '0=1'} THEN 7 ELSE 0 END +
+        -- Boost source experte (données terrain > données générées)
+        CASE WHEN kb.source = 'expert'      THEN 4 ELSE 0 END +
+        CASE WHEN kb.source = 'dataset_npk' THEN 3 ELSE 0 END +
+        -- Boost langue malagasy si question en malagasy
+        CASE WHEN ${language === 'mg' ? "kb.language = 'mg'" : '0=1'} THEN 5 ELSE 0 END
+      ) AS score
     FROM knowledge_chunks kc
-           JOIN knowledge_base       kb ON kb.id = kc.knowledge_id
-           LEFT JOIN knowledge_structured ks ON ks.knowledge_id = kb.id
+    JOIN knowledge_base       kb ON kb.id = kc.knowledge_id
+    LEFT JOIN knowledge_structured ks ON ks.knowledge_id = kb.id
     WHERE (${likeConditions})
        OR (${titleConditions})
        OR (ks.fertilizer_name IS NOT NULL AND (${nameConditions}))
     ORDER BY score DESC, kc.chunk_index ASC
-      LIMIT ?
+    LIMIT ?
   `;
 
   const params = [
@@ -233,8 +337,12 @@ function buildContext(chunks: RAGChunk[]): string {
 
   const seen = new Set<string>();
   const parts: string[] = [];
+  let totalLength = 0;
+  const MAX_CONTEXT = 3500; // réduit de 6000 → 3500 pour des réponses plus concises
 
   for (const chunk of chunks) {
+    if (totalLength >= MAX_CONTEXT) break;
+
     const key = chunk.title;
     const isNew = !seen.has(key);
     seen.add(key);
@@ -243,41 +351,41 @@ function buildContext(chunks: RAGChunk[]): string {
 
     if (isNew) {
       part += `\n### ${chunk.title}`;
-      if (chunk.fertilizer_name && chunk.fertilizer_name !== chunk.title) {
-        part += ` (${chunk.fertilizer_name})`;
-      }
-      if (chunk.region) part += ` — ${chunk.region}`;
+      if (chunk.region) part += ` [${chunk.region}]`;
       if (chunk.npk_ratio && chunk.npk_ratio !== 'inconnu') {
-        part += `\nNPK: ${chunk.npk_ratio}`;
+        part += ` | NPK: ${chunk.npk_ratio}`;
       }
       part += '\n';
     }
 
-    part += chunk.chunk_content + '\n';
+    // Contenu brut tronqué — max 400 chars par chunk
+    part += chunk.chunk_content.substring(0, 400) + '\n';
 
+    // Steps : seulement les 4 premières étapes (pas toutes)
     if (isNew && chunk.steps) {
       try {
         const steps = JSON.parse(chunk.steps) as string[];
         if (steps.length > 0) {
-          part += '\nÉtapes: ' + steps.slice(0, 5).join(' | ') + '\n';
+          part += 'Étapes clés: ' + steps.slice(0, 4).map(s => s.substring(0, 80)).join(' → ') + '\n';
         }
       } catch { /* ignore */ }
     }
 
+    // Tips : seulement les 2 premiers
     if (isNew && chunk.tips) {
       try {
         const tips = JSON.parse(chunk.tips) as string[];
         if (tips.length > 0) {
-          part += 'Conseils: ' + tips.slice(0, 3).join(' | ') + '\n';
+          part += 'Conseils: ' + tips.slice(0, 2).map(t => t.substring(0, 80)).join(' | ') + '\n';
         }
       } catch { /* ignore */ }
     }
 
     parts.push(part);
-    if (parts.join('').length > 5000) break;
+    totalLength += part.length;
   }
 
-  return parts.join('\n---\n').substring(0, 6000);
+  return parts.join('\n---\n');
 }
 
 // ─── APPEL GROQ ──────────────────────────────────────────────
@@ -311,8 +419,8 @@ async function callGroq(
         { role: 'system', content: systemPrompt },
         ...messages,
       ],
-      max_tokens: 1500,
-      temperature: 0.4,
+      max_tokens: 600,  // réduit de 1500 → 600 : réponses concises
+      temperature: 0.3, // légèrement réduit pour plus de précision
       stream: false,
     }),
     signal: AbortSignal.timeout(30000),
@@ -390,8 +498,21 @@ export const chat = async (req: any, res: Response) => {
   // Détecter la langue automatiquement (ou utiliser celle forcée par l'UI)
   const language: 'mg' | 'fr' | 'en' = forcedLang || detectLanguage(question);
 
+  // ── Guard sujet : rejeter avant d'appeler Groq ──
+  if (!isOnTopic(question, language)) {
+    return res.json({
+      answer: OFF_TOPIC_REPLIES[language] || OFF_TOPIC_REPLIES['fr'],
+      sources: [],
+      structured: null,
+      tokens_used: 0,
+      kb_chunks_used: 0,
+      detected_language: language,
+      off_topic: true,
+    });
+  }
+
   try {
-    const chunks = await searchKnowledgeBase(question, 6);
+    const chunks = await searchKnowledgeBase(question, 5, language);
     const context = buildContext(chunks);
     const { answer, tokens } = await callGroq(question, context, history, language);
 
@@ -444,8 +565,15 @@ export const query = async (req: Request, res: Response) => {
 
   const language: 'mg' | 'fr' | 'en' = forcedLang || detectLanguage(question);
 
+  if (!isOnTopic(question, language)) {
+    return res.status(400).json({
+      error: 'off_topic',
+      message: OFF_TOPIC_REPLIES[language] || OFF_TOPIC_REPLIES['fr'],
+    });
+  }
+
   try {
-    const chunks = await searchKnowledgeBase(question, 8);
+    const chunks = await searchKnowledgeBase(question, 6, language);
     const context = buildContext(chunks);
     const { answer, tokens } = await callGroq(question, context, [], language);
 
