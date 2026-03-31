@@ -1,14 +1,10 @@
 /**
  * database/turso.ts
  * Client Turso pour la Knowledge Base IA de Fertili'zeo
- *
- * Variables d'environnement nécessaires :
- *   TURSO_URL       = libsql://your-db-name.turso.io
- *   TURSO_AUTH_TOKEN = eyJ...
  */
 
 import { createClient, type Client } from '@libsql/client';
-import dotenv from 'dotenv';
+import * as dotenv from 'dotenv';
 
 dotenv.config();
 
@@ -22,9 +18,9 @@ export function getTursoClient(): Client {
 
   if (!url || !authToken) {
     throw new Error(
-      '❌ TURSO_URL et TURSO_AUTH_TOKEN sont requis dans .env\n' +
-      '   1. Crée une DB sur https://turso.tech\n' +
-      '   2. Copie les credentials dans ton .env'
+        '❌ TURSO_URL et TURSO_AUTH_TOKEN sont requis dans .env\n' +
+        '   1. Crée une DB sur https://turso.tech\n' +
+        '   2. Copie les credentials dans ton .env'
     );
   }
 
@@ -32,7 +28,6 @@ export function getTursoClient(): Client {
   return tursoClient;
 }
 
-// Helpers typés pour simplifier les appels
 export const turso = {
   async execute(sql: string, args: any[] = []) {
     const db = getTursoClient();
@@ -56,8 +51,8 @@ export const turso = {
   async batch(statements: { sql: string; args?: any[] }[]) {
     const db = getTursoClient();
     return db.batch(
-      statements.map(s => ({ sql: s.sql, args: s.args ?? [] })),
-      'write'
+        statements.map(s => ({ sql: s.sql, args: s.args ?? [] })),
+        'write'
     );
   }
 };

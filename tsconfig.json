@@ -21,6 +21,19 @@
       ]
     },
     "allowImportingTsExtensions": true,
-    "noEmit": true
-  }
+    "noEmit": true,
+    "downlevelIteration": true
+  },
+  "include": [
+    "src/**/*",
+    "backend/**/*",
+    "database/**/*",
+    "scripts/**/*",
+    "server.ts",
+    "vite.config.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist"
+  ]
 }

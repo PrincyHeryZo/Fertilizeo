@@ -19,13 +19,11 @@ const EditProduct: React.FC = () => {
         category: 'Compost',
         stock: '',
     });
-    const [images, setImages] = useState<string[]>([]); // up to 5 base64 or URL strings
+    const [images, setImages] = useState<string[]>([]);
     const [loading, setLoading] = useState(false);
     const [fetching, setFetching] = useState(true);
 
-    useEffect(() => {
-        fetchProduct();
-    }, [id]);
+    useEffect(() => { fetchProduct(); }, [id]);
 
     const fetchProduct = async () => {
         try {
@@ -38,7 +36,6 @@ const EditProduct: React.FC = () => {
                 category: p.category || 'Compost',
                 stock: String(p.stock || ''),
             });
-            // image_url can be a JSON array or a single string
             if (p.image_url) {
                 try {
                     const parsed = JSON.parse(p.image_url);
@@ -56,12 +53,12 @@ const EditProduct: React.FC = () => {
     };
 
     const handleImageAdd = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const files = Array.from(e.target.files || []);
+        const files = Array.from(e.target.files ?? []) as File[];
         if (images.length + files.length > MAX_PHOTOS) {
             toast.error(`Maximum ${MAX_PHOTOS} photos autorisées`);
             return;
         }
-        files.forEach(file => {
+        files.forEach((file: File) => {
             if (file.size > 3 * 1024 * 1024) {
                 toast.error(`${file.name} est trop lourd (max 3MB)`);
                 return;
@@ -72,7 +69,6 @@ const EditProduct: React.FC = () => {
             };
             reader.readAsDataURL(file);
         });
-        // Reset input so same file can be re-added if removed
         e.target.value = '';
     };
 
@@ -88,7 +84,6 @@ const EditProduct: React.FC = () => {
         }
         setLoading(true);
         try {
-            // Store multiple images as JSON array, single image as string for compatibility
             const image_url = images.length === 0
                 ? ''
                 : images.length === 1
@@ -123,7 +118,6 @@ const EditProduct: React.FC = () => {
 
     return (
         <div className="p-6 md:p-8 max-w-4xl mx-auto">
-            {/* Header */}
             <div className="flex items-center gap-4 mb-8">
                 <button onClick={() => navigate('/dashboard/products')}
                         className="p-2 hover:bg-gray-100 rounded-xl transition-all text-gray-500 hover:text-gray-900">
@@ -139,7 +133,6 @@ const EditProduct: React.FC = () => {
                         className="bg-white rounded-3xl shadow-sm border border-gray-100 p-8">
                 <form onSubmit={handleSubmit} className="space-y-6">
 
-                    {/* Name */}
                     <div>
                         <label className="block text-sm font-bold text-gray-700 mb-2">
                             Nom du Produit <span className="text-red-400">*</span>
@@ -153,7 +146,6 @@ const EditProduct: React.FC = () => {
                         </div>
                     </div>
 
-                    {/* Description */}
                     <div>
                         <label className="block text-sm font-bold text-gray-700 mb-2">
                             Description <span className="text-red-400">*</span>
@@ -167,7 +159,6 @@ const EditProduct: React.FC = () => {
                         </div>
                     </div>
 
-                    {/* Price + Stock */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                         <div>
                             <label className="block text-sm font-bold text-gray-700 mb-2">
@@ -195,7 +186,6 @@ const EditProduct: React.FC = () => {
                         </div>
                     </div>
 
-                    {/* Category */}
                     <div>
                         <label className="block text-sm font-bold text-gray-700 mb-2">Catégorie</label>
                         <div className="relative">
@@ -208,7 +198,6 @@ const EditProduct: React.FC = () => {
                         </div>
                     </div>
 
-                    {/* Photos */}
                     <div>
                         <div className="flex items-center justify-between mb-2">
                             <label className="text-sm font-bold text-gray-700">
@@ -218,7 +207,6 @@ const EditProduct: React.FC = () => {
                             <span className="text-xs text-gray-400">Min 1 recommandée · Max 5 · 3MB par photo</span>
                         </div>
 
-                        {/* Image Grid */}
                         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 mb-3">
                             {images.map((img, index) => (
                                 <div key={index} className="relative aspect-square rounded-2xl overflow-hidden border border-gray-200 group">
@@ -234,14 +222,11 @@ const EditProduct: React.FC = () => {
                                     </button>
                                 </div>
                             ))}
-
-                            {/* Add button */}
                             {images.length < MAX_PHOTOS && (
                                 <label className="aspect-square rounded-2xl border-2 border-dashed border-gray-200 hover:border-emerald-300 hover:bg-emerald-50 flex flex-col items-center justify-center cursor-pointer transition-all group">
                                     <Plus size={22} className="text-gray-300 group-hover:text-emerald-500 transition-colors mb-1" />
                                     <span className="text-xs text-gray-400 group-hover:text-emerald-600 transition-colors">Ajouter</span>
-                                    <input type="file" accept="image/*" multiple className="hidden"
-                                           onChange={handleImageAdd} />
+                                    <input type="file" accept="image/*" multiple className="hidden" onChange={handleImageAdd} />
                                 </label>
                             )}
                         </div>
@@ -250,15 +235,14 @@ const EditProduct: React.FC = () => {
                             <label className="flex flex-col items-center justify-center w-full h-32 bg-gray-50 border-2 border-dashed border-gray-200 rounded-2xl hover:border-emerald-300 hover:bg-emerald-50 cursor-pointer transition-all group">
                                 <Upload size={28} className="text-gray-300 group-hover:text-emerald-500 mb-2 transition-colors" />
                                 <span className="text-sm font-semibold text-gray-400 group-hover:text-emerald-600 transition-colors">
-                  Cliquez pour ajouter des photos
-                </span>
+                                    Cliquez pour ajouter des photos
+                                </span>
                                 <span className="text-xs text-gray-300 mt-1">Jusqu'à 5 photos · JPG, PNG · 3MB max</span>
                                 <input type="file" accept="image/*" multiple className="hidden" onChange={handleImageAdd} />
                             </label>
                         )}
                     </div>
 
-                    {/* Warning */}
                     <div className="p-4 bg-amber-50 border border-amber-100 rounded-2xl flex items-start gap-3">
                         <AlertCircle className="text-amber-600 flex-shrink-0 mt-0.5" size={18} />
                         <p className="text-sm text-amber-800">
@@ -266,7 +250,6 @@ const EditProduct: React.FC = () => {
                         </p>
                     </div>
 
-                    {/* Actions */}
                     <div className="flex gap-3 pt-2">
                         <button type="button" onClick={() => navigate('/dashboard/products')}
                                 className="flex-1 border border-gray-200 hover:bg-gray-50 text-gray-700 font-bold py-3.5 rounded-2xl transition-all">

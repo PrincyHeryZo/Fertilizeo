@@ -21,12 +21,12 @@ const NewProduct: React.FC = () => {
   const navigate = useNavigate();
 
   const handleImageAdd = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
+    const files = Array.from(e.target.files ?? []) as File[];
     if (images.length + files.length > MAX_PHOTOS) {
       toast.error(`Maximum ${MAX_PHOTOS} photos autorisées`);
       return;
     }
-    files.forEach(file => {
+    files.forEach((file: File) => {
       if (file.size > 3 * 1024 * 1024) {
         toast.error(`${file.name} est trop lourd (max 3MB)`);
         return;
@@ -145,7 +145,6 @@ const NewProduct: React.FC = () => {
               </div>
             </div>
 
-            {/* Photos */}
             <div>
               <div className="flex items-center justify-between mb-2">
                 <label className="text-sm font-bold text-gray-700">
@@ -185,8 +184,8 @@ const NewProduct: React.FC = () => {
                   <label className="flex flex-col items-center justify-center w-full h-32 bg-gray-50 border-2 border-dashed border-gray-200 rounded-2xl hover:border-emerald-300 hover:bg-emerald-50 cursor-pointer transition-all group">
                     <Upload size={28} className="text-gray-300 group-hover:text-emerald-500 mb-2 transition-colors" />
                     <span className="text-sm font-semibold text-gray-400 group-hover:text-emerald-600 transition-colors">
-                  Cliquez pour ajouter des photos
-                </span>
+                      Cliquez pour ajouter des photos
+                    </span>
                     <span className="text-xs text-gray-300 mt-1">Jusqu'à 5 photos · JPG, PNG · 3MB max chacune</span>
                     <input type="file" accept="image/*" multiple className="hidden" onChange={handleImageAdd} />
                   </label>
