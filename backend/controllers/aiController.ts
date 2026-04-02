@@ -2,7 +2,7 @@
  * backend/controllers/aiController.ts
  * ============================================================
  * Cœur du RAG — IA spécialiste fertilisation bio Fertili'zeo
- * Phase 2 : Support malagasy + détection automatique langue
+ * Phase 4 : Refonte complète — qualité réponses + guard contextuel
  * ============================================================
  */
 
@@ -11,6 +11,9 @@ import { turso } from '../../database/turso';
 
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
 const GROQ_MODEL   = 'llama-3.3-70b-versatile';
+
+// Seuil minimum de score RAG pour considérer un chunk comme pertinent
+const MIN_CHUNK_SCORE = 5;
 
 // ─── TYPES ───────────────────────────────────────────────────
 
@@ -41,6 +44,7 @@ interface AIResponse {
     steps?: string[];
     tips?: string[];
     npk_ratio?: string;
+    _npk_relevant?: boolean;
   } | null;
   tokens_used?: number;
   kb_chunks_used: number;
@@ -60,7 +64,7 @@ export function detectLanguage(text: string): 'mg' | 'fr' | 'en' {
     'zezika', 'ahitra', 'hazo', 'rano', 'tany', 'vokatra',
     'fanafody', 'fiompiana', 'trondro', 'tantely', 'fafana',
     'komposita', 'zavamaniry', 'voly', 'amidy', 'vidiny',
-    'hanao', 'ahoana', 'inona', 'atao', 'izany', 'ilay',
+    'hanao', 'atao', 'izany', 'ilay',
     'ny', 'sy', 'ho', 'aho', 'ianao', 'izy', 'isika',
   ];
 
@@ -80,13 +84,10 @@ export function detectLanguage(text: string): 'mg' | 'fr' | 'en' {
     if (frenchWords.includes(word)) frScore += 1;
   }
 
-  // Accents français
   if (/[àâäéèêëîïôùûü]/.test(t)) frScore += 2;
-
   if (mgScore >= 2) return 'mg';
   if (frScore >= 1) return 'fr';
 
-  // Détecter anglais par mots clés basiques
   const enWords = ['how', 'what', 'where', 'when', 'why', 'which', 'the', 'and', 'for'];
   let enScore = 0;
   for (const word of words) {
@@ -94,126 +95,182 @@ export function detectLanguage(text: string): 'mg' | 'fr' | 'en' {
   }
   if (enScore >= 1) return 'en';
 
-  return 'fr'; // Défaut : français
+  return 'fr';
 }
 
 // ─── GUARD SUJET ─────────────────────────────────────────────
-// Vérifie si la question est dans le domaine avant d'appeler Groq
-// → économise des tokens pour les questions hors sujet
+// Phase 4 : prend en compte l'historique de conversation pour
+// autoriser les questions de suivi contextuelles
 
 const TOPIC_KEYWORDS: Record<string, string[]> = {
-  // Français
   fr: [
     'engrais', 'compost', 'fumier', 'bokashi', 'vermicompost', 'lombricompost',
     'fertilisant', 'fertilisation', 'biofertilisant', 'biostimulant',
-    'sol', 'terre', 'argile', 'humus', 'ph', 'acidité', 'carence',
-    'npk', 'azote', 'phosphore', 'potassium', 'calcium', 'magnésium',
-    'plante', 'culture', 'semence', 'graine', 'semis', 'récolte', 'rendement',
-    'riz', 'maïs', 'manioc', 'haricot', 'tomate', 'légume', 'fruit',
-    'cacao', 'café', 'vanille', 'girofle', 'poivre',
+    'sol', 'terre', 'argile', 'humus', 'ph', 'acidite', 'carence',
+    'npk', 'azote', 'phosphore', 'potassium', 'calcium', 'magnesium',
+    'plante', 'culture', 'semence', 'graine', 'semis', 'recolte', 'rendement',
+    'riz', 'mais', 'manioc', 'haricot', 'tomate', 'legume', 'fruit',
+    'cacao', 'cafe', 'vanille', 'girofle', 'poivre',
     'irrigation', 'drainage', 'mulch', 'paillage', 'rotation',
-    'pisciculture', 'poisson', 'tilapia', 'étang', 'aquaponie', 'cage',
+    'pisciculture', 'poisson', 'tilapia', 'etang', 'aquaponie', 'cage',
     'apiculture', 'abeille', 'ruche', 'miel', 'propolis', 'cire', 'pollinisation',
+    'reine', 'gelee', 'royale', 'essaim', 'couvain', 'hausse',
     'pesticide', 'insecticide', 'fongicide', 'ravageur', 'maladie',
     'agriculture', 'agriculteur', 'ferme', 'champ', 'parcelle',
-    'sahel', 'tropical', 'africain', 'madagascar', 'compost',
+    'sahel', 'tropical', 'africain', 'madagascar',
+    'nourrir', 'nourriture', 'alimentation', 'aliment', 'manger',
+    'elever', 'elevage', 'reproduction', 'croissance',
+    'riziere', 'aquaculture', 'silure', 'carpe', 'truite', 'alevin',
+    'recette', 'fabriquer', 'construire', 'preparer', 'installer',
+    'dose', 'quantite', 'frequence', 'temperature', 'oxygene',
   ],
-  // Malagasy
   mg: [
     'zezika', 'komposita', 'fambolena', 'voly', 'tany', 'vary', 'katsaka',
-    'mangahazo', 'voatabia', 'legioma', 'vokatra', 'famafazana', 'lehilahy',
-    'trondro', 'fiompiana', 'etangy', 'tantely', 'tanteli', 'fafana', 'tantely',
+    'mangahazo', 'voatabia', 'legioma', 'vokatra', 'famafazana',
+    'trondro', 'fiompiana', 'etangy', 'tantely', 'tanteli', 'fafana',
     'ahitra', 'zavamaniry', 'hazo', 'rano', 'aina', 'biby',
     'akoho', 'omby', 'kisoa', 'amboa', 'vorona',
-    'fanafody', 'aretin', 'valala', 'biby-kely',
-    'fifamanor', 'fofifa', 'itra', 'cirad', 'antsirabe',
+    'fanafody', 'aretin', 'valala',
+    'fifamanor', 'fofifa', 'cirad', 'antsirabe',
+    'sakafo', 'hanina', 'mihinana', 'miompy',
   ],
-  // Anglais
   en: [
     'fertilizer', 'fertiliser', 'compost', 'manure', 'bokashi', 'soil',
     'crop', 'plant', 'seed', 'harvest', 'yield', 'farm', 'field',
     'rice', 'maize', 'corn', 'cassava', 'bean', 'vegetable', 'fruit',
     'cocoa', 'coffee', 'organic', 'nitrogen', 'phosphorus', 'potassium',
     'fish', 'tilapia', 'pond', 'aquaculture', 'aquaponics',
-    'bee', 'honey', 'hive', 'apiculture', 'pollination',
+    'bee', 'honey', 'hive', 'apiculture', 'pollination', 'queen', 'royal',
     'irrigation', 'drainage', 'mulch', 'rotation', 'pest', 'disease',
     'agriculture', 'tropical', 'africa', 'madagascar',
+    'feed', 'feeding', 'food', 'eat', 'nutrition', 'grow', 'breed',
   ],
 };
 
 const OFF_TOPIC_REPLIES: Record<string, string> = {
-  fr: "Je suis FEZA, spécialiste en agriculture biologique, pisciculture et apiculture. Je ne peux pas répondre à cette question. Posez-moi une question sur les engrais, le compost, les cultures tropicales, les poissons ou les abeilles !",
+  fr: "Je suis FEZA, spécialiste en agriculture biologique, pisciculture et apiculture. Je ne peux pas répondre à cette question. Posez-moi une question sur les engrais, le compost, les cultures tropicales, la pisciculture ou l'apiculture !",
   mg: "FEZA aho, manam-pahaizana momba ny fambolena sy fiompiana. Tsy afaka mamaly an'io fanontaniana io aho. Manontania ahy momba ny zezika, komposita, trondro na tantely !",
   en: "I am FEZA, specialist in organic farming, aquaculture and beekeeping. I cannot answer this question. Ask me about fertilizers, compost, tropical crops, fish or bees!",
 };
 
-function isOnTopic(question: string, language: 'mg' | 'fr' | 'en'): boolean {
-  const q = question.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+function isOnTopic(
+    question: string,
+    language: 'mg' | 'fr' | 'en',
+    history: ChatMessage[] = [],
+): boolean {
+  const normalize = (s: string) =>
+      s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+  const q = normalize(question);
   const keywords = [
     ...(TOPIC_KEYWORDS[language] || []),
-    ...(TOPIC_KEYWORDS['fr'] || []),  // toujours inclure FR comme base
+    ...(TOPIC_KEYWORDS['fr'] || []),
   ];
-  return keywords.some(kw => q.includes(kw));
+
+  // 1. La question contient un mot-clé agricole
+  if (keywords.some(kw => q.includes(kw))) return true;
+
+  // 2. Question courte de suivi (<= 8 mots) + historique récent on-topic
+  const wordCount = question.trim().split(/\s+/).length;
+  if (wordCount <= 8 && history.length >= 2) {
+    const recentContext = history
+        .slice(-4)
+        .map(m => normalize(m.content))
+        .join(' ');
+    if (keywords.some(kw => recentContext.includes(kw))) return true;
+  }
+
+  return false;
 }
 
+// ─── PERTINENCE NPK ──────────────────────────────────────────
+// Détermine si la question porte sur un engrais/fertilisant
+// pour conditionner l'affichage du badge NPK dans le frontend
+
+export function isNPKRelevant(question: string, history: ChatMessage[] = []): boolean {
+  const combined = question + ' ' + history.slice(-2).map(m => m.content).join(' ');
+  return (
+      /engrais|fumier|compost|bokashi|npk|fertilisant|zezika|komposita|fertilizer|manure/i.test(combined) ||
+      /carence|azote|phosphore|potassium|nitrogen|phosphorus/i.test(combined) ||
+      /nourrir.*(sol|plante|culture)|améliorer.*(sol|terre)/i.test(combined)
+  );
+}
 
 // ─── PROMPTS PAR LANGUE ──────────────────────────────────────
+// Phase 4 : anti-hallucination stricte, réponses directes,
+// interdiction d'inventer des NPK, élimination des formules répétitives
 
 function getSystemPrompt(language: 'mg' | 'fr' | 'en', context: string): string {
-  const expertise = `
-Tes domaines d'expertise :
+  const expertise = `Domaines d'expertise :
 - Fertilisation biologique (compost, fumier, bokashi, biofertilisants, engrais verts)
-- Pisciculture (étang, cage flottante, aquaponie, tilapia, silure)
-- Apiculture (ruche KTB, miel, propolis, cire, pollinisation)
+- Pisciculture (étang, cage flottante, aquaponie, tilapia, silure, carpe)
+- Apiculture (ruche KTB, reine, gelée royale, miel, propolis, cire, pollinisation)
 - Cultures tropicales (riz/vary, maïs, manioc, cacao, café, légumes)
 - Santé des sols et diagnostic des carences
 Régions : Madagascar, Afrique de l'Est, Afrique de l'Ouest, Sahel.`;
 
-  const kb = context ? `\nKNOWLEDGE BASE — données techniques vérifiées :\n${context}\n` : '';
+  const kb = context
+      ? `\nKNOWLEDGE BASE — données techniques vérifiées :\n${context}\n`
+      : `\nKNOWLEDGE BASE : aucune donnée trouvée pour cette question.\n`;
 
   if (language === 'mg') {
-    return `Ianao dia FEZA, mpanampy IA manam-pahaizana momba ny fambolena maharitra sy ny fiompiana any Madagasikara sy Afrika tropikaly.
-Noforonina ianao nataon'i Fertili'zeo — ny sehatra voalohany momba ny fambolena nomerika any Madagasikara.
+    return `Ianao dia FEZA, mpanampy IA manam-pahaizana momba ny fambolena maharitra sy ny fiompiana any Madagasikara.
+Noforonina ianao nataon'i Fertili'zeo.
 ${expertise}
 ${kb}
-FITSIPIKA LEHIBE :
-1. Ampiasao ny angona ao amin'ny knowledge base aloha. Raha hita ao ny vaovao, lazao mazava tsara (doses, fotoana, NPK).
-2. Valio FOANA amin'ny MALAGASY satria ny fanontaniana dia an'ny malagasy.
-3. Azo atao ny mampiasa teny frantsay ho an'ny teny teknika (compost, NPK, pH, etc.) saingy ny teny hafa dia malagasy.
-4. FOHY sy MAZAVA : 3-5 andalana ihany. Aza manaparitaka be loatra.
-5. Raha tsy fantatrao, lazao mazava fa tsy fantatra.
-6. Ny fanontaniana tsy mifandray amin'ny fambolena : avereno amin'ny lohahevitra.`;
+FITSIPIKA LEHIBE — TSILAZAO :
+1. Ampiasao FOANA ny angona ao amin'ny knowledge base raha misy. Lazao mazava tsara ny doses, fotoana, NPK raha hita.
+2. Valio FOANA amin'ny MALAGASY mahazatra sy mazava. Azo ampiasaina ny teny teknika frantsay (compost, NPK, pH...).
+3. FOHY : 3-5 andalana. AZA manao "Tokony mamaly... Tokony manorona..." matetika — fomba fiteny tsy voajanahary io.
+4. Raha misy etape maro, ampiasao laharan-isa (1. 2. 3.). Raha tsy misy etape, aza manao lisitra.
+5. NPK : AZA MAMORONA isa NPK raha tsy hita amin'ny knowledge base. Lazao hoe "tsy fantatra" raha tsy misy.
+6. Valio mivantana ny fanontaniana — aza manomboka amin'ny famaritana lava.`;
   }
 
   if (language === 'en') {
     return `You are FEZA, an AI specialist in sustainable agriculture and farming in Madagascar and tropical Africa.
-Developed by Fertili'zeo — Madagascar's first digital agricultural platform.
+Developed by Fertili'zeo.
 ${expertise}
 ${kb}
-ABSOLUTE RULES:
-1. Use knowledge base data first. If the info is there, cite it precisely (doses, durations, NPK).
-2. Always respond in ENGLISH since the question is in English.
-3. Be CONCISE: 3-5 sentences max for simple questions. Use bullet points only if the user asks for steps.
-4. Give the direct answer first, then add 1-2 key details if necessary.
-5. If you don't know, say so clearly rather than inventing.`;
+ABSOLUTE RULES :
+1. Use knowledge base data FIRST. If found, cite precisely (doses, durations, NPK).
+2. Always respond in ENGLISH.
+3. Be DIRECT : answer immediately in 2-4 sentences. Use numbered lists ONLY for step-by-step procedures.
+4. NPK : ONLY report NPK if it appears explicitly in the knowledge base. NEVER invent NPK values.
+5. If the knowledge base has no data, say clearly "I don't have specific data on this" then give general advice.
+6. Never repeat the same sentence structure multiple times.`;
   }
 
-  // Français (défaut)
   return `Tu es FEZA, l'assistant IA spécialiste en agriculture durable et élevage à Madagascar et en Afrique tropicale.
 Développé par Fertili'zeo — la première plateforme agricole numérique malgache.
 ${expertise}
 ${kb}
-RÈGLES ABSOLUES :
-1. Utilise les données de la knowledge base en priorité. Si l'info y est, cite-la précisément (doses, durées, NPK).
-2. Réponds TOUJOURS en FRANÇAIS puisque la question est en français.
-3. SOIS CONCIS : 3-5 phrases pour une question simple. Utilise des listes UNIQUEMENT si on te demande des étapes.
-4. Commence par la réponse directe, puis ajoute 1-2 détails clés si nécessaire.
-5. Si tu ne sais pas, dis-le clairement plutôt que d'inventer.`;
+RÈGLES ABSOLUES — NE JAMAIS ENFREINDRE :
+1. Utilise les données de la knowledge base EN PRIORITÉ. Si l'info y est, cite-la précisément (doses, durées, NPK).
+2. Réponds TOUJOURS en FRANÇAIS clair, accessible à un agriculteur.
+3. SOIS DIRECT : commence par la réponse, pas par une introduction générale. 2-4 phrases pour une question simple.
+4. Utilise des listes numérotées UNIQUEMENT pour des procédures étape par étape. Sinon, écris en prose.
+5. NPK : ne cite un ratio NPK QUE s'il figure dans la knowledge base. N'invente JAMAIS de valeurs NPK.
+6. Si la knowledge base est vide sur le sujet, dis "Je n'ai pas de données précises sur ce point" puis donne un conseil général honnête.
+7. N'utilise JAMAIS deux fois la même structure de phrase dans ta réponse.`;
 }
 
-// ─── RECHERCHE RAG DANS TURSO ────────────────────────────────
+// ─── DÉTECTION DE CATÉGORIE ───────────────────────────────────
 
-// Mots liés à Madagascar/région — boost si question locale
+function detectCategory(text: string): string | null {
+  const q = text.toLowerCase();
+  if (/tilapia|poisson|étang|aquapon|piscicult|trondro|fiompi|silure|carpe|truite|alevin/.test(q)) return 'pisciculture';
+  if (/abeille|ruche|miel|apicult|propolis|cire|tantely|pollinisa|reine|gelée|essaim|couvain/.test(q)) return 'apiculture';
+  if (/compost|vermicompost|lombri|bokashi/.test(q)) return 'compost';
+  if (/fumier|fiente|zezika|urine|guano|lisier/.test(q)) return 'fumier';
+  if (/engrais.?vert|couverture|mucuna|crotalaria|légumineuse/.test(q)) return 'engrais_vert';
+  if (/biofertili|biostimul|rhizobium|mycorhiz|purin/.test(q)) return 'biofertilisant';
+  if (/bokashi|ferment/.test(q)) return 'bokashi';
+  return null;
+}
+
+// ─── MOTS LIÉS À MADAGASCAR ───────────────────────────────────
+
 const MADAGASCAR_WORDS = new Set([
   'madagascar', 'malgache', 'malagasy', 'gasy', 'vary', 'omby', 'akoho',
   'antsirabe', 'tana', 'antananarivo', 'toamasina', 'tamatave', 'mahajanga',
@@ -222,29 +279,29 @@ const MADAGASCAR_WORDS = new Set([
   'mangahazo', 'katsaka', 'voatabia', 'trondro', 'tantely',
 ]);
 
-// Détecte si la question concerne Madagascar
 function isMadagascarQuestion(question: string): boolean {
   const q = question.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   return [...MADAGASCAR_WORDS].some(w => q.includes(w));
 }
 
-// Détecte la catégorie principale demandée
-function detectCategory(question: string): string | null {
-  const q = question.toLowerCase();
-  if (/tilapia|poisson|étang|aquapon|piscicult|trondro|fiompi/.test(q)) return 'pisciculture';
-  if (/abeille|ruche|miel|apicult|propolis|cire|tantely|pollinisa/.test(q)) return 'apiculture';
-  if (/compost|vermicompost|lombri|bokashi/.test(q)) return 'compost';
-  if (/fumier|fiente|zezika|urine|guano|lisier/.test(q)) return 'fumier';
-  if (/engrais vert|couverture|mucuna|crotalaria|legumineuse/.test(q)) return 'engrais_vert';
-  if (/biofertili|biostimul|rhizobium|mycorhiz|purin/.test(q)) return 'biofertilisant';
-  if (/bokashi|ferment/.test(q)) return 'bokashi';
-  return null;
+// ─── RECHERCHE RAG ─────────────────────────────────────────
+// Phase 4 : enrichit la recherche avec le contexte historique
+// pour les questions de suivi courtes
+
+// Cache léger en mémoire pour éviter de refaire la même requête RAG
+// dans une même session. TTL = 60 secondes.
+const ragCache = new Map<string, { chunks: RAGChunk[]; ts: number }>();
+const RAG_CACHE_TTL = 60_000;
+
+function ragCacheKey(q: string, lang: string): string {
+  return `${lang}:${q.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim().substring(0, 80)}`;
 }
 
 async function searchKnowledgeBase(
     question: string,
     limit = 5,
     language: 'mg' | 'fr' | 'en' = 'fr',
+    history: ChatMessage[] = [],
 ): Promise<RAGChunk[]> {
   const stopWords = new Set([
     'comment', 'faire', 'pour', 'avec', 'dans', 'quoi', 'quel', 'quelle',
@@ -252,84 +309,133 @@ async function searchKnowledgeBase(
     'the', 'how', 'what', 'which', 'this', 'that', 'are', 'can', 'for', 'and',
     'aho', 'ianao', 'izy', 'isika', 'izahay', 'hoe', 'mba', 'efa',
     'mbola', 'koa', 'anefa', 'saingy', 'satria', 'ny', 'sy', 'ho',
+    'exactement', 'donne', 'dites', 'expliquez', 'quels', 'sont',
+    'il', 'elle', 'ils', 'elles', 'moi', 'toi', 'lui',
   ]);
 
-  const keywords = question
-      .toLowerCase()
-      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-      .replace(/[^a-z0-9\s]/g, ' ')
+  const wordCount = question.trim().split(/\s+/).length;
+  let searchText = question;
+  if (wordCount <= 6 && history.length >= 2) {
+    const recentContext = history.slice(-2).map(m => m.content).join(' ');
+    searchText = `${question} ${recentContext}`.substring(0, 300);
+  }
+
+  const normalize = (s: string) =>
+      s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9\s]/g, ' ');
+
+  const keywords = normalize(searchText)
       .split(/\s+/)
       .filter(w => w.length > 3 && !stopWords.has(w))
-      .slice(0, 6); // max 6 mots-clés pour ne pas exploser la requête
+      .slice(0, 6);
 
-  if (keywords.length === 0) keywords.push(question.substring(0, 20).toLowerCase());
+  if (keywords.length === 0) keywords.push(normalize(question).substring(0, 20));
+
+  // Cache hit check
+  const cacheKey = ragCacheKey(keywords.join(' '), language);
+  const cached = ragCache.get(cacheKey);
+  if (cached && Date.now() - cached.ts < RAG_CACHE_TTL) {
+    return cached.chunks.slice(0, limit);
+  }
 
   const isMadagascar = isMadagascarQuestion(question) || language === 'mg';
-  const targetCategory = detectCategory(question);
+  const targetCategory =
+      detectCategory(question) ||
+      (history.length > 0 ? detectCategory(history.slice(-2).map(m => m.content).join(' ')) : null);
 
-  const likeConditions  = keywords.map(() => 'LOWER(kc.content) LIKE ?').join(' OR ');
-  const titleConditions = keywords.map(() => 'LOWER(kb.title) LIKE ?').join(' OR ');
-  const nameConditions  = keywords.map(() => 'LOWER(ks.fertilizer_name) LIKE ?').join(' OR ');
-  const cropConditions  = keywords.map(() => 'LOWER(ks.best_for_crops) LIKE ?').join(' OR ');
+  const primaryKeyword = keywords[0];
 
-  const likeParams = keywords.map(k => `%${k}%`);
-
-  const sql = `
+  // Phase 1 SQL : pre-filtre sur mot-cle principal uniquement (3 params au lieu de 56)
+  const preFilterSql = `
     SELECT
       kc.id          AS chunk_id,
       kb.title,
       kb.category,
       kb.source,
+      kb.language    AS kb_language,
       kc.content     AS chunk_content,
+      kc.chunk_index,
       ks.fertilizer_name,
       ks.steps,
       ks.tips,
       ks.npk_ratio,
       ks.region,
-      (
-        -- Titre : score le plus fort (correspondance exacte au sujet)
-        CASE WHEN (${titleConditions}) THEN 12 ELSE 0 END +
-        -- Contenu du chunk
-        CASE WHEN (${likeConditions})  THEN  5 ELSE 0 END +
-        -- Nom de l'engrais/fertilisant
-        CASE WHEN ks.fertilizer_name IS NOT NULL AND (${nameConditions}) THEN 9 ELSE 0 END +
-        -- Culture cible
-        CASE WHEN ks.best_for_crops IS NOT NULL AND (${cropConditions}) THEN 5 ELSE 0 END +
-        -- Boost Madagascar si question locale ou en malagasy
-        CASE WHEN ${isMadagascar ? "ks.region LIKE '%Madagascar%'" : '0=1'} THEN 6 ELSE 0 END +
-        -- Boost catégorie détectée
-        CASE WHEN ${targetCategory ? `kb.category = '${targetCategory}'` : '0=1'} THEN 7 ELSE 0 END +
-        -- Boost source experte (données terrain > données générées)
-        CASE WHEN kb.source = 'expert'      THEN 4 ELSE 0 END +
-        CASE WHEN kb.source = 'dataset_npk' THEN 3 ELSE 0 END +
-        -- Boost langue malagasy si question en malagasy
-        CASE WHEN ${language === 'mg' ? "kb.language = 'mg'" : '0=1'} THEN 5 ELSE 0 END
-      ) AS score
+      ks.best_for_crops
     FROM knowledge_chunks kc
-    JOIN knowledge_base       kb ON kb.id = kc.knowledge_id
+    JOIN knowledge_base kb ON kb.id = kc.knowledge_id
     LEFT JOIN knowledge_structured ks ON ks.knowledge_id = kb.id
-    WHERE (${likeConditions})
-       OR (${titleConditions})
-       OR (ks.fertilizer_name IS NOT NULL AND (${nameConditions}))
-    ORDER BY score DESC, kc.chunk_index ASC
-    LIMIT ?
+    WHERE
+      LOWER(kc.content)                         LIKE ?
+      OR LOWER(kb.title)                        LIKE ?
+      OR LOWER(COALESCE(ks.fertilizer_name,'')) LIKE ?
+      ${targetCategory ? `OR kb.category = '${targetCategory}'` : ''}
+      ${isMadagascar ? "OR LOWER(COALESCE(ks.region,'')) LIKE '%madagascar%'" : ''}
+    ORDER BY kc.chunk_index ASC
+    LIMIT 60
   `;
 
-  const params = [
-    ...likeParams, ...likeParams, ...likeParams, ...likeParams,
-    ...likeParams, ...likeParams, ...likeParams,
-    limit,
-  ];
+  const p = `%${primaryKeyword}%`;
 
   try {
-    const rows = await turso.all(sql, params) as any[];
-    return rows.map(r => ({ ...r, score: Number(r.score) || 0 }));
+    const rows = await turso.all(preFilterSql, [p, p, p]) as any[];
+    if (rows.length === 0) return [];
+
+    // Phase 2 JS : scoring complet en memoire sur ~60 candidats
+    const normQ = normalize(searchText);
+
+    const scored: RAGChunk[] = rows.map((r: any) => {
+      const title   = normalize(r.title || '');
+      const content = normalize(r.chunk_content || '');
+      const fname   = normalize(r.fertilizer_name || '');
+      const crops   = normalize(r.best_for_crops || '');
+      const region  = normalize(r.region || '');
+
+      let score = 0;
+
+      keywords.forEach((kw, idx) => {
+        const weight = Math.max(0.4, 1 - idx * 0.1);
+        if (title.includes(kw))   score += 12 * weight;
+        if (fname.includes(kw))   score +=  9 * weight;
+        if (content.includes(kw)) score +=  5 * weight;
+        if (crops.includes(kw))   score +=  4 * weight;
+      });
+
+      if (isMadagascar && region.includes('madagascar')) score += 6;
+      if (targetCategory && r.category === targetCategory) score += 7;
+      if (r.source === 'expert')      score += 4;
+      if (r.source === 'dataset_npk') score += 3;
+      if (language === 'mg' && r.kb_language === 'mg') score += 8;
+      if (r.chunk_index === 0) score += 2;
+      if (r.chunk_index > 3)  score -= 1;
+
+      return { ...r, score };
+    });
+
+    // Dedupliquer : meilleur chunk par article
+    const bestByArticle = new Map<string, RAGChunk>();
+    for (const row of scored) {
+      const existing = bestByArticle.get(row.title);
+      if (!existing || row.score > existing.score) {
+        bestByArticle.set(row.title, row);
+      }
+    }
+
+    const results = Array.from(bestByArticle.values())
+        .filter(r => r.score >= MIN_CHUNK_SCORE)
+        .sort((a, b) => b.score - a.score)
+        .slice(0, limit);
+
+    ragCache.set(cacheKey, { chunks: results, ts: Date.now() });
+    if (ragCache.size > 200) {
+      const oldest = [...ragCache.entries()].sort((a, b) => a[1].ts - b[1].ts)[0];
+      ragCache.delete(oldest[0]);
+    }
+
+    return results;
   } catch (err) {
     console.error('[RAG] Turso search error:', err);
     return [];
   }
 }
-
 // ─── CONSTRUCTION DU CONTEXTE ────────────────────────────────
 
 function buildContext(chunks: RAGChunk[]): string {
@@ -338,7 +444,7 @@ function buildContext(chunks: RAGChunk[]): string {
   const seen = new Set<string>();
   const parts: string[] = [];
   let totalLength = 0;
-  const MAX_CONTEXT = 3500; // réduit de 6000 → 3500 pour des réponses plus concises
+  const MAX_CONTEXT = 3000;
 
   for (const chunk of chunks) {
     if (totalLength >= MAX_CONTEXT) break;
@@ -358,25 +464,22 @@ function buildContext(chunks: RAGChunk[]): string {
       part += '\n';
     }
 
-    // Contenu brut tronqué — max 400 chars par chunk
     part += chunk.chunk_content.substring(0, 400) + '\n';
 
-    // Steps : seulement les 4 premières étapes (pas toutes)
     if (isNew && chunk.steps) {
       try {
         const steps = JSON.parse(chunk.steps) as string[];
         if (steps.length > 0) {
-          part += 'Étapes clés: ' + steps.slice(0, 4).map(s => s.substring(0, 80)).join(' → ') + '\n';
+          part += 'Étapes : ' + steps.slice(0, 4).map(s => s.substring(0, 80)).join(' → ') + '\n';
         }
       } catch { /* ignore */ }
     }
 
-    // Tips : seulement les 2 premiers
     if (isNew && chunk.tips) {
       try {
         const tips = JSON.parse(chunk.tips) as string[];
         if (tips.length > 0) {
-          part += 'Conseils: ' + tips.slice(0, 2).map(t => t.substring(0, 80)).join(' | ') + '\n';
+          part += 'Conseils : ' + tips.slice(0, 2).map(t => t.substring(0, 80)).join(' | ') + '\n';
         }
       } catch { /* ignore */ }
     }
@@ -397,7 +500,7 @@ async function callGroq(
     language: 'mg' | 'fr' | 'en' = 'fr',
 ): Promise<{ answer: string; tokens: number }> {
   if (!GROQ_API_KEY) {
-    throw new Error('GROQ_API_KEY manquant dans les variables d\'environnement');
+    throw new Error("GROQ_API_KEY manquant dans les variables d'environnement");
   }
 
   const systemPrompt = getSystemPrompt(language, context);
@@ -419,8 +522,8 @@ async function callGroq(
         { role: 'system', content: systemPrompt },
         ...messages,
       ],
-      max_tokens: 600,  // réduit de 1500 → 600 : réponses concises
-      temperature: 0.3, // légèrement réduit pour plus de précision
+      max_tokens: 700,
+      temperature: 0.25,
       stream: false,
     }),
     signal: AbortSignal.timeout(30000),
@@ -433,26 +536,85 @@ async function callGroq(
 
   const data = await response.json() as any;
   return {
-    answer: data.choices?.[0]?.message?.content || 'Tsy afaka namaly aho. / Je n\'ai pas pu répondre.',
+    answer: data.choices?.[0]?.message?.content || "Tsy afaka namaly aho. / Je n'ai pas pu répondre.",
     tokens: data.usage?.total_tokens || 0,
   };
 }
 
 // ─── EXTRAIRE STRUCTURE ───────────────────────────────────────
+// Phase 4 : sélectionne le chunk structuré correspondant réellement
+// à la question posée, et filtre les NPK invalides ("Non applicable",
+// "inconnu", sans chiffres)
 
-function extractStructured(answer: string, chunks: RAGChunk[]): AIResponse['structured'] {
-  const topChunk = chunks[0];
-  if (!topChunk) return null;
-  try {
-    return {
-      fertilizer_name: topChunk.fertilizer_name || undefined,
-      steps: topChunk.steps ? JSON.parse(topChunk.steps) : undefined,
-      tips: topChunk.tips ? JSON.parse(topChunk.tips) : undefined,
-      npk_ratio: topChunk.npk_ratio || undefined,
-    };
-  } catch {
-    return null;
+function extractStructured(
+    answer: string,
+    chunks: RAGChunk[],
+    question: string,
+    history: ChatMessage[] = [],
+): AIResponse['structured'] {
+  if (chunks.length === 0) return null;
+
+  const normalize = (s: string) =>
+      s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+  const q = normalize(question);
+  const recentCtx = history.slice(-2).map(m => normalize(m.content)).join(' ');
+  const searchCtx = q + ' ' + recentCtx;
+
+  // Trouver le meilleur chunk correspondant à la question
+  const bestChunk = chunks.find(c => {
+    if (!c.fertilizer_name && !c.steps && !c.npk_ratio) return false;
+    const name  = normalize(c.fertilizer_name || '');
+    const title = normalize(c.title || '');
+    const cat   = normalize(c.category || '');
+    return (
+        (name.length > 3 && searchCtx.includes(name)) ||
+        (title.length > 3 && searchCtx.includes(title.substring(0, Math.min(title.length, 12)))) ||
+        searchCtx.includes(cat)
+    );
+  }) || (chunks[0]?.steps || chunks[0]?.fertilizer_name ? chunks[0] : null);
+
+  if (!bestChunk) return null;
+
+  // Valider le NPK : doit contenir des chiffres et ne pas être "non applicable"
+  const rawNpk = bestChunk.npk_ratio;
+  const npkValid = !!(
+      rawNpk &&
+      rawNpk !== 'inconnu' &&
+      !/non.?applic|n\/a/i.test(rawNpk) &&
+      /\d/.test(rawNpk)
+  );
+
+  // Valider les steps : au moins 2, chacune > 10 chars
+  let steps: string[] | undefined;
+  if (bestChunk.steps) {
+    try {
+      const parsed = JSON.parse(bestChunk.steps) as string[];
+      const filtered = parsed.filter(s => s?.trim().length > 10);
+      if (filtered.length >= 2) steps = filtered;
+    } catch { /* ignore */ }
   }
+
+  // Valider les tips : au moins 1, > 10 chars
+  let tips: string[] | undefined;
+  if (bestChunk.tips) {
+    try {
+      const parsed = JSON.parse(bestChunk.tips) as string[];
+      const filtered = parsed.filter(t => t?.trim().length > 10);
+      if (filtered.length >= 1) tips = filtered;
+    } catch { /* ignore */ }
+  }
+
+  // Si rien de valide → pas de structured
+  if (!npkValid && !steps && !tips && !bestChunk.fertilizer_name) return null;
+
+  return {
+    fertilizer_name: bestChunk.fertilizer_name || undefined,
+    steps,
+    tips,
+    npk_ratio: npkValid ? rawNpk! : undefined,
+    _npk_relevant: isNPKRelevant(question, history),
+  };
 }
 
 // ─── LOG USAGE ───────────────────────────────────────────────
@@ -468,7 +630,7 @@ async function logApiUsage(params: {
   try {
     await turso.run(
         `INSERT INTO collection_log (id, source, query, status, items)
-         VALUES (?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?)`,
         [
           crypto.randomUUID(),
           params.source,
@@ -495,11 +657,10 @@ export const chat = async (req: any, res: Response) => {
     return res.status(400).json({ message: 'Question trop longue (max 500 caractères).' });
   }
 
-  // Détecter la langue automatiquement (ou utiliser celle forcée par l'UI)
   const language: 'mg' | 'fr' | 'en' = forcedLang || detectLanguage(question);
 
-  // ── Guard sujet : rejeter avant d'appeler Groq ──
-  if (!isOnTopic(question, language)) {
+  // Guard sujet — Phase 4 : contextuel
+  if (!isOnTopic(question, language, history)) {
     return res.json({
       answer: OFF_TOPIC_REPLIES[language] || OFF_TOPIC_REPLIES['fr'],
       sources: [],
@@ -512,7 +673,7 @@ export const chat = async (req: any, res: Response) => {
   }
 
   try {
-    const chunks = await searchKnowledgeBase(question, 5, language);
+    const chunks = await searchKnowledgeBase(question, 5, language, history);
     const context = buildContext(chunks);
     const { answer, tokens } = await callGroq(question, context, history, language);
 
@@ -524,6 +685,8 @@ export const chat = async (req: any, res: Response) => {
       language,
     });
 
+    const structured = extractStructured(answer, chunks, question, history);
+
     const aiResponse: AIResponse = {
       answer,
       sources: Array.from(new Map(chunks.map(c => [c.title, {
@@ -531,7 +694,7 @@ export const chat = async (req: any, res: Response) => {
         category: c.category,
         source: c.source,
       }])).values()).slice(0, 3),
-      structured: extractStructured(answer, chunks),
+      structured,
       tokens_used: tokens,
       kb_chunks_used: chunks.length,
       detected_language: language,
@@ -548,11 +711,11 @@ export const chat = async (req: any, res: Response) => {
 };
 
 // =============================================================
-// ENDPOINT 2 — /api/ai/query (API key, usage externe/vendable)
+// ENDPOINT 2 — /api/ai/query (API key, usage externe)
 // =============================================================
 
 export const query = async (req: Request, res: Response) => {
-  const { question, language: forcedLang, context_filter } = req.body;
+  const { question, language: forcedLang } = req.body;
   const apiKeyData = (req as any).apiKeyData;
 
   if (!question?.trim()) {
@@ -599,7 +762,7 @@ export const query = async (req: Request, res: Response) => {
         kb_chunks_found: chunks.length,
         tokens_used: tokens,
         detected_language: language,
-        powered_by: 'Fertili\'zeo AI',
+        powered_by: "Fertili'zeo AI",
       },
     });
   } catch (err: any) {

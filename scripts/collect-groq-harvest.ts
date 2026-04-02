@@ -37,7 +37,7 @@ dotenv.config();
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
 const GROQ_MODEL   = 'llama-3.3-70b-versatile';
 const CHUNK_SIZE   = 350;
-const DELAY_MS     = 1500; // respecter rate limit Groq ~30 RPM
+const DELAY_MS     = 2500; // 30 RPM = 1 req/2s minimum, 2.5s = marge sécurité
 const DRY_RUN      = process.argv.includes('--dry-run');
 const BATCH_FILTER = process.argv.find(a => a.startsWith('--batch='))?.split('=')[1];
 const LIMIT        = parseInt(process.argv.find(a => a.startsWith('--limit='))?.split('=')[1] || '9999');
@@ -564,48 +564,145 @@ const HARVEST_QUERIES: HarvestQuery[] = [
   { batch: 'bokashi', category: 'bokashi', region: 'Afrique tropicale', climate: 'tropical', lang: 'fr',
     subject: 'Bokashi de résidus de canne à sucre et bagasse fermentée',
     source_hint: 'sugarcane bagasse fermentation, EM, bokashi, K=0.8%, Mauritius Sugar Industry Research' },
+
+  // ═══════════════════════════════════════════════════════════
+  // BATCH: madagascar-mg — fiches EN MALAGASY terrain réel
+  // Uniquement des sujets avec données vérifiables FOFIFA/FIFAMANOR/CIRAD
+  // ═══════════════════════════════════════════════════════════
+
+  { batch: 'madagascar-mg', category: 'compost', region: 'Madagascar', climate: 'tropical altitude', lang: 'mg',
+    subject: 'Bokashi vary venty — fomba fanomanana amin\'ny son de riz malgache sy mélasse',
+    source_hint: 'bokashi Madagascar, vary venty (son de riz), mélasse canne Morondava, EM locaux, FIFAMANOR, lactobacillus riz fermenté' },
+
+  { batch: 'madagascar-mg', category: 'fumier', region: 'Madagascar', climate: 'tropical', lang: 'mg',
+    subject: 'Urine omby fermenté — biofertilisant azo natao maimaimpoana amin\'ny tantsaha malgasy',
+    source_hint: 'urine bovine fermentée Madagascar, N=8-15g/L, dilution 1:20, azote rapide, FOFIFA, données terrain Vakinankaratra' },
+
+  { batch: 'madagascar-mg', category: 'culture', region: 'Madagascar', climate: 'tropical altitude', lang: 'mg',
+    subject: 'Famokarana voatabia organika eny amin\'ny havoana — Vakinankaratra sy Itasy',
+    source_hint: 'tomate biologique hautes terres Madagascar, FOFIFA, FIFAMANOR Antsirabe, variétés Roma Marmande, rendements 20-30t/ha avec intrants organiques' },
+
+  { batch: 'madagascar-mg', category: 'culture', region: 'Madagascar', climate: 'tropical', lang: 'mg',
+    subject: 'Vary jeby (riz irrigué) sy ny fanazarana ny fanjakan\'ny tany amin\'ny bas-fonds — Lac Alaotra',
+    source_hint: 'riz irrigué Lac Alaotra Madagascar, FOFIFA Ambatondrazaka, doses compost 3-5t/ha, rendements 3-6t/ha, saison principale et contre-saison' },
+
+  { batch: 'madagascar-mg', category: 'technique', region: 'Madagascar', climate: 'tropical', lang: 'mg',
+    subject: 'Fomba manitsy ny tany acide eny amin\'ny tanety — fampiasana chaux sy cendres eto Madagasikara',
+    source_hint: 'correction acidité sols ferralitiques rouges Madagascar, pH 4.5-5.5, chaux agricole 200-500 kg/ha, cendres bois, FIFAMANOR, résultats terrain' },
+
+  { batch: 'madagascar-mg', category: 'pisciculture', region: 'Madagascar', climate: 'tropical', lang: 'mg',
+    subject: 'Rizipisciculture — fiompiana trondro ao amin\'ny tanimbary vary (riz-poisson Madagascar)',
+    source_hint: 'rice-fish farming Madagascar, CIRAD WorldFish, tilapia dans rizières, densité 500-1000 poissons/ha, bénéfices désherbage et fumure, données MAEP 2018' },
+
+  { batch: 'madagascar-mg', category: 'biofertilisant', region: 'Madagascar', climate: 'tropical', lang: 'mg',
+    subject: 'Purin Tithonia diversifolia (botry zahana) — engrais foliaire maimaimpoana eto Madagasikara',
+    source_hint: 'Tithonia diversifolia Madagascar, N=3.5% K=4.1% biomasse fraîche, purin dilution 1:10, données CIRAD, plante mellifère aussi, Vakinankaratra' },
+
+  { batch: 'madagascar-mg', category: 'apiculture', region: 'Madagascar', climate: 'tropical', lang: 'mg',
+    subject: 'Gelée royale sy reine d\'abeille — ahoana ny fomba fahazoana azy amin\'ny fiompiana tantely gasy',
+    source_hint: 'gelée royale production Madagascar, Apis mellifera unicolor, méthode Nicot, reine mère, GAM Madagascar, prix marché gelée royale 200-400 USD/kg' },
 ];
 
 // =============================================================
 // GROQ HARVESTER — génère les fiches depuis les requêtes
+// Phase 4 : Prompt renforcé — données vérifiables uniquement
 // =============================================================
+
+// Glossaire malagasy agricole de référence — termes terrain réels
+// utilisés par les paysans malgaches, pas de la traduction académique
+const MG_GLOSSAIRE = `
+VOCABULAIRE AGRICOLE MALAGASY — termes terrain (utilise ces mots, pas leurs traductions françaises) :
+- tany = sol/terre | rano = eau | hazo = arbre/bois | ahitra = herbe/adventice
+- vary = riz (toutes variétés) | vary jeby = riz irrigué | vary hitsaka = riz pluvial
+- katsaka = maïs | mangahazo = manioc | voatabia = tomate | saonjo = taro
+- patate douce = batata mena/bontsilava | arachide = voanjo | haricot = tsaramaso
+- zezika = engrais/fumier (générique) | zezika omby = fumier de zébu
+- zezika akoho = fumier de poulet | zezika kisoa = fumier de porc
+- komposita = compost | bokashi = bokashi (même mot) | purin = purin (même mot)
+- tany tanety = sol de colline/tanety | bas-fond = tany ambany/tanety ambany
+- vokatra = rendement/récolte | fambolena = agriculture/culture
+- fiompiana = élevage | trondro = poisson | tantely = miel/abeille
+- ruche = tranomasoandro na tranon'ny tantely | etang = dobo/farihy kely
+- mpamboly = agriculteur | tantsaha = paysan | sekoly fambolena = école d'agriculture
+- voly = planter/semer | jinja = récolter | manala = désherber | miravaka = labourer
+- fotoam-pambolena = saison de culture | taonan-java-maniry = cycle végétatif
+- 1 kapoaka = environ 400g (mesure locale) | 1 sobika = panier (~25kg)
+INSTITUTIONS : FOFIFA (recherche agronomique malgache) | FIFAMANOR (Antsirabe, élevage/sol)
+CTHT (Centre Technique Horticole Tamatave) | CIRAD (recherche française à Madagascar)
+`;
 
 async function harvestFiche(query: HarvestQuery): Promise<{ title: string; content: string; structured: any } | null> {
   if (!GROQ_API_KEY) return null;
 
   const isMaingasy = query.lang === 'mg';
+
+  // ── Instruction langue ──────────────────────────────────────
+  // Pour le malagasy : on fournit le glossaire terrain et on interdit
+  // la traduction mot-à-mot depuis le français. Le malagasy doit être
+  // naturel, comme parlé par un technicien agricole malgache.
   const langInstr = isMaingasy
-    ? 'Réponds ENTIÈREMENT en malagasy (malgache), sauf les termes scientifiques latins et les chiffres NPK.'
-    : 'Réponds en français technique précis.';
+      ? `Rédige cette fiche ENTIÈREMENT en malagasy parlé par les techniciens agricoles malgaches.
+${MG_GLOSSAIRE}
+RÈGLES LANGUE MALAGASY :
+- Utilise le vocabulaire du glossaire ci-dessus pour les termes agricoles
+- Accepté en français : noms latins, sigles (NPK, pH, SCV, CIRAD), chiffres et unités (kg, t/ha, cm, °C)
+- INTERDIT : traduction phrase par phrase depuis le français ("Tokony mamaly... Tokony manorona..." est du malagasy de mauvaise qualité — c'est de la traduction automatique)
+- Style direct : "Asio ny zezika 3 kg/m² alohan'ny fambolena" (pas "Tokony mamaly ny zezika ho 3 kg/m²")
+- Quantités concrètes : "kapoaka iray (400g)" "sobika iray (~25 kg)" pour les mesures locales`
+      : `Rédige en français technique agricole clair, accessible à un technicien de terrain.
+Style direct et concret. Évite le jargon académique excessif.`;
 
-  const prompt = `Tu es un agronome expert en agriculture biologique tropicale avec accès aux publications de la FAO, CIRAD, INRA, IITA, ICRISAT, CIMMYT, WorldFish, ICRAF.
+  // ── Prompt principal ─────────────────────────────────────────
+  // La clé de la qualité : on demande au modèle de distinguer
+  // ce qu'il sait avec certitude de ce qu'il estime seulement.
+  // On lui interdit d'inventer des chiffres NPK non vérifiables.
+  const prompt = `Tu es un agronome spécialiste de l'agriculture biologique tropicale, avec une connaissance approfondie des publications de la FAO, CIRAD, INRA, IITA, ICRISAT, CIMMYT, WorldFish, ICRAF, FIFAMANOR et FOFIFA Madagascar.
 
-Sujet : ${query.subject}
-Région : ${query.region} | Climat : ${query.climate} | Catégorie : ${query.category}
-Source de référence : ${query.source_hint}
+SUJET : ${query.subject}
+RÉGION : ${query.region} | CLIMAT : ${query.climate} | CATÉGORIE : ${query.category}
+SOURCE PRINCIPALE : ${query.source_hint}
 
 ${langInstr}
 
-Génère une FICHE TECHNIQUE COMPLÈTE basée sur les données réelles de recherche agronomique.
-RÈGLES ABSOLUES :
-1. Utilise UNIQUEMENT des données mesurées (doses réelles, NPK en %, rendements en t/ha, durées en jours)
-2. Cite les valeurs des sources mentionnées (INRA, FAO, CIRAD, IITA, FIFAMANOR...)
-3. Minimum 6 étapes précises avec doses et durées
-4. Minimum 4 conseils techniques actionnables  
-5. Minimum 3 erreurs graves à éviter avec conséquences
-6. Si tu ne connais pas les chiffres précis, donne les fourchettes usuelles de la littérature
+---
+RÈGLES DE QUALITÉ — NON NÉGOCIABLES :
 
-Réponds UNIQUEMENT avec un JSON valide :
+1. DONNÉES RÉELLES UNIQUEMENT
+   - N'utilise que des chiffres que tu peux attribuer à une source réelle (FAO, CIRAD, FIFAMANOR, INRA, publication scientifique)
+   - Si tu cites un NPK, il doit correspondre à une analyse de laboratoire documentée
+   - Si tu n'as pas de données mesurées pour un NPK, mets "inconnu" — ne pas inventer
+
+2. DISTINGUE CE QUE TU SAIS DE CE QUE TU ESTIMES
+   - Données certaines (mesurées en labo) : cite la source entre parenthèses — ex: "N=1.8% (FIFAMANOR 2022)"
+   - Données estimées (fourchettes littérature) : formule comme "généralement 1-2 t/ha selon la source"
+   - Chiffres inconnus pour cette région spécifique : dis-le — "les données pour Madagascar manquent sur ce point"
+
+3. ÉTAPES CONCRÈTES ET ACTIONNABLES
+   - Chaque étape doit pouvoir être exécutée par un paysan sur le terrain
+   - Inclure : dose précise OU fourchette, durée, conditions (température, humidité si pertinent)
+   - Minimum 5 étapes, maximum 10 étapes
+
+4. CONSEILS DIFFÉRENCIANTS
+   - Les conseils doivent apporter une information que l'étape seule ne donne pas
+   - Pas de conseil vague ("surveillez régulièrement") — toujours avec critère observable
+   - Minimum 3 conseils
+
+5. ERREURS AVEC CONSÉQUENCES PRÉCISES
+   - Chaque erreur doit expliquer ce qui se passe concrètement si on la commet
+   - Minimum 3 erreurs
+
+---
+Réponds UNIQUEMENT avec un JSON valide, sans markdown, sans commentaires :
 {
-  "fertilizer_name": "nom précis en ${isMaingasy ? 'malagasy' : 'français'}",
-  "content_text": "paragraphe de 150-200 mots avec données chiffrées, sources, contexte",
-  "ingredients": ["ingrédient avec quantité précise"],
-  "steps": ["Étape précise avec dose/durée/température/dose"],
-  "tips": ["Conseil technique actionnable avec chiffres si disponibles"],
-  "mistakes": ["Erreur grave + conséquence précise"],
-  "duration": "durée précise avec unités",
-  "npk_ratio": "N:x P:y K:z (source)",
-  "best_for_crops": ["cultures"],
+  "fertilizer_name": "nom précis du produit/technique${isMaingasy ? ' en malagasy' : ' en français'}",
+  "content_text": "texte de 120-180 mots décrivant le contexte, l'intérêt agronomique, les données chiffrées avec sources",
+  "ingredients": ["ingrédient + quantité pour 1 unité de production standard"],
+  "steps": ["étape avec action concrète + dose/durée/condition"],
+  "tips": ["conseil technique avec critère observable ou chiffre"],
+  "mistakes": ["erreur + conséquence concrète observée sur le terrain"],
+  "duration": "durée totale avec unité",
+  "npk_ratio": "N:x P:y K:z (source) OU inconnu",
+  "best_for_crops": ["cultures principales adaptées"],
   "climate": "${query.climate}",
   "difficulty": "facile | moyen | avancé",
   "cost": "très faible | faible | moyen | élevé"
@@ -628,23 +725,46 @@ Réponds UNIQUEMENT avec un JSON valide :
     });
 
     if (!res.ok) {
-      const err = await res.text();
+      const errText = await res.text();
       if (res.status === 429) {
-        log('⏳', `Rate limit Groq — attente 60s...`);
-        await sleep(60000);
-        return null;
+        log('⏳', `Rate limit Groq — attente 90s puis retry...`);
+        await sleep(90000);
+        // Retry automatique après rate limit
+        return harvestFiche(query);
       }
-      log('❌', `Groq HTTP ${res.status}: ${err.substring(0, 100)}`);
+      log('❌', `Groq HTTP ${res.status}: ${errText.substring(0, 100)}`);
       return null;
     }
 
     const d = await res.json() as any;
-    const raw = (d.choices?.[0]?.message?.content || '').trim()
-      .replace(/^```json?\s*/i, '').replace(/\s*```$/, '');
+    const rawContent = (d.choices?.[0]?.message?.content || '').trim();
 
-    const parsed = JSON.parse(raw);
+    // Nettoyage robuste : retire backticks markdown et chars de contrôle
+    const raw = rawContent
+        .replace(/^```json?\s*/i, '').replace(/\s*```$/, '')
+        .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '');
 
-    // Construire le content_raw à partir de content_text + steps + tips
+    let parsed: any;
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      // Récupération : extraire entre la première { et la dernière }
+      const start = raw.indexOf('{');
+      const end   = raw.lastIndexOf('}');
+      if (start !== -1 && end > start) {
+        try {
+          parsed = JSON.parse(raw.substring(start, end + 1));
+        } catch {
+          log('❌', `JSON invalide : ${query.subject.substring(0, 50)}`);
+          return null;
+        }
+      } else {
+        log('❌', `Pas de JSON dans la réponse Groq`);
+        return null;
+      }
+    }
+
+    // Construire le content_raw
     const content = [
       parsed.content_text || '',
       parsed.ingredients?.length ? `\nIngrédients : ${parsed.ingredients.join(' | ')}` : '',
@@ -671,10 +791,13 @@ Réponds UNIQUEMENT avec un JSON valide :
       },
     };
   } catch (err) {
-    if (String(err).includes('429')) {
-      log('⏳', `Rate limit — attente 60s...`);
-      await sleep(60000);
+    const msg = String(err);
+    if (msg.includes('429')) {
+      log('⏳', `Rate limit (catch) — attente 90s puis retry...`);
+      await sleep(90000);
+      return harvestFiche(query);
     }
+    log('❌', `Erreur inattendue : ${msg.substring(0, 80)}`);
     return null;
   }
 }
@@ -687,19 +810,48 @@ function sleep(ms: number) { return new Promise(r => setTimeout(r, ms)); }
 
 function slugify(t: string) {
   return t.toLowerCase()
-    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-|-$/g, '')
-    .substring(0, 80);
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '')
+      .substring(0, 120);
 }
 
-function chunkText(text: string) {
-  const words = text.split(/\s+/);
+// Phase 4 : chunking sémantique — respecte les frontières de phrases
+// et de paragraphes pour ne pas couper une étape ou un conseil en deux.
+// Chunks cibles : 300-400 mots avec overlap de 1 phrase pour la continuité RAG.
+function chunkText(text: string): string[] {
+  if (!text?.trim()) return [];
+
+  // Découpe par paragraphes (double saut de ligne) ou par séparateurs logiques
+  const paragraphs = text
+      .split(/\n{2,}|(?<=\. )(?=[A-ZÀÂÄÉÈÊËÎÏÔÙÛÜÑ])|(?<=\. )(?=\d+\.)/)
+      .map(p => p.trim())
+      .filter(p => p.length > 20);
+
   const chunks: string[] = [];
-  for (let i = 0; i < words.length; i += CHUNK_SIZE) {
-    const c = words.slice(i, i + CHUNK_SIZE).join(' ');
-    if (c.trim().length > 80) chunks.push(c);
+  let current = '';
+  let lastSentence = '';
+
+  for (const para of paragraphs) {
+    const projected = current ? current + '\n\n' + para : para;
+    const wordCount = projected.split(/\s+/).length;
+
+    if (wordCount > CHUNK_SIZE && current.length > 100) {
+      chunks.push(current.trim());
+      // Overlap : commencer le prochain chunk avec la dernière phrase du précédent
+      const sentences = current.split(/(?<=[.!?])\s+/);
+      lastSentence = sentences[sentences.length - 1] || '';
+      current = lastSentence ? lastSentence + '\n\n' + para : para;
+    } else {
+      current = projected;
+    }
   }
+
+  if (current.trim().length > 50) chunks.push(current.trim());
+
+  // Si le texte est court, retourner en un seul chunk
+  if (chunks.length === 0 && text.trim().length > 50) return [text.trim()];
+
   return chunks;
 }
 
@@ -722,37 +874,37 @@ async function saveToTurso(params: {
     const s = params.structured || {};
 
     await turso.run(
-      'INSERT INTO knowledge_base (id, title, slug, category, source, language, content_raw) VALUES (?, ?, ?, ?, ?, ?, ?)',
-      [kbId, params.title, slug, params.category, params.source, params.lang, params.content]
+        'INSERT INTO knowledge_base (id, title, slug, category, source, language, content_raw) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        [kbId, params.title, slug, params.category, params.source, params.lang, params.content]
     );
 
     const chunks = chunkText(params.content);
     for (let i = 0; i < chunks.length; i++) {
       await turso.run(
-        'INSERT INTO knowledge_chunks (id, knowledge_id, chunk_index, content) VALUES (?, ?, ?, ?)',
-        [randomUUID(), kbId, i, chunks[i]]
+          'INSERT INTO knowledge_chunks (id, knowledge_id, chunk_index, content) VALUES (?, ?, ?, ?)',
+          [randomUUID(), kbId, i, chunks[i]]
       );
     }
 
     await turso.run(
-      `INSERT INTO knowledge_structured
+        `INSERT INTO knowledge_structured
          (id, knowledge_id, fertilizer_name, ingredients, steps, tips, mistakes, duration, npk_ratio, best_for_crops, climate, region, difficulty, cost)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        randomUUID(), kbId,
-        s.fertilizer_name || params.title,
-        JSON.stringify(s.ingredients || []),
-        JSON.stringify(s.steps || []),
-        JSON.stringify(s.tips || []),
-        JSON.stringify(s.mistakes || []),
-        s.duration || 'variable',
-        s.npk_ratio || 'inconnu',
-        JSON.stringify(s.best_for_crops || []),
-        s.climate || 'tous',
-        params.region,
-        s.difficulty || 'moyen',
-        s.cost || 'variable',
-      ]
+        [
+          randomUUID(), kbId,
+          s.fertilizer_name || params.title,
+          JSON.stringify(s.ingredients || []),
+          JSON.stringify(s.steps || []),
+          JSON.stringify(s.tips || []),
+          JSON.stringify(s.mistakes || []),
+          s.duration || 'variable',
+          s.npk_ratio || 'inconnu',
+          JSON.stringify(s.best_for_crops || []),
+          s.climate || 'tous',
+          params.region,
+          s.difficulty || 'moyen',
+          s.cost || 'variable',
+        ]
     );
 
     return 'saved';
@@ -799,8 +951,8 @@ async function main() {
   }
 
   const allQueries = BATCH_FILTER
-    ? HARVEST_QUERIES.filter(q => q.batch === BATCH_FILTER)
-    : HARVEST_QUERIES;
+      ? HARVEST_QUERIES.filter(q => q.batch === BATCH_FILTER)
+      : HARVEST_QUERIES;
 
   const queries = allQueries.slice(0, LIMIT);
 

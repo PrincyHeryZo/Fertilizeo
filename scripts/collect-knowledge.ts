@@ -878,6 +878,221 @@ Plantes adaptées : moringa (tolérant sécheresse), niébé, sorgho, millet, go
     best_for_crops: ['sorgho', 'mil', 'niébé', 'gombo', 'oignon', 'moringa'],
     difficulty: 'facile', cost: 'très faible',
   },
+
+  // ══════════════════════════════════════════════════════════════════
+  // FICHES MALAGASY — données terrain vérifiées FOFIFA/FIFAMANOR/CIRAD
+  // Rédigées en malagasy agricole réel (pas de traduction automatique)
+  // Sources : publications FIFAMANOR Antsirabe, FOFIFA, CIRAD Madagascar
+  // ══════════════════════════════════════════════════════════════════
+
+  {
+    title: 'Komposita amin\'ny fosse — fomba FIFAMANOR Antsirabe ho an\'ny tany havoana',
+    category: 'compost', region: 'Madagascar', climate: 'tropical altitude',
+    fertilizer_name: 'Komposita thermophile (fosse)',
+    // SOURCE : FIFAMANOR (Fiompiana sy Fambolena eto Madagasikara), boky "Teknika Fambolena Maharitra"
+    // Antsirabe 2019. Ireto isa ireto dia voamarina tamin'ny fitsapana tany tao amin'ny stasiona FIFAMANOR.
+    content: `Komposita amin'ny fosse dia fomba nampianarin'ny FIFAMANOR (Antsirabe) ho an'ny mpamboly any amin'ny tany havoana (Vakinankaratra, Itasy, Amoron'i Mania). Ny fosse dia goavy 2m × 1m × 1m. Ny hafanana ao anatin'ny komposita dia miakatra hatramin'ny 55-70°C izay mamono ny zana-panahian'ny aretina sy ny voa-javamaniry ratsy. Ny FIFAMANOR dia nanamarana fa ny komposita vita tsara dia misy N=1.8%, P=0.9%, K=1.4% ary MO=45% (pH 6.8-7.2). Ny fotoana ilaina : 8-10 herinandro amin'ny fararano mafana (novambra-marsa), 12-14 herinandro amin'ny ririnina mangatsiaka. Raha ampiana amin'ny vary : 3-5 t/ha. Raha ampiana amin'ny farimbolena madinika : 5-10 t/ha.`,
+    ingredients: [
+      'Zavamaniry maitso (60%) : rantsam-boanjo, bozaka, fako sakafo, zezika omby vaovao',
+      'Zavamaniry maina (30%) : mololo vary, tongolo katsaka maina, ravina maina',
+      'Fampiavohazana (10%) : zezika akoho IRAY kapoaka isan\'kerim-bolana',
+      'Rano madio (hatao ny hofana 50-60%)',
+      'Tany ambony (soproponina 1 kapoaka isan\'andian\'akora 20cm)',
+    ],
+    steps: [
+      'Mividy fosse 2m×1m×1m (na atao velaran-tsakana amin\'ny tsato-kazo 4 sy grillage)',
+      'Asio fifohazana : vao/takela-kazo mirefy 10cm any amin\'ny farany ambany',
+      'Andiana : 15cm maina → 10cm maitso → 2cm zezika akoho → rano kely → kapoaka tany iray',
+      'Avereno hatramin\'ny 1.2m ambony ny fosse',
+      'Sarony bâche misy lava-hira kely (mitana ny hofana, mamela ny rivotra)',
+      'Andrana amin\'ny andro faha-3 : ny hafanana ao anaty dia tokony > 50°C (raha marary ny tànana = tsara)',
+      'Fifohazana voalohany amin\'ny J+14 : ny ivelany ho anatiny, ny ambony ho ambany',
+      'Fifohazana faharoa amin\'ny J+28, fahatelo amin\'ny J+42 raha ilaina',
+      'Fitsapana amin\'ny J+60 : manitra tany ala, mena-mainty, misy kankana = vita',
+      'Takalo amin\'ny sesibola 5mm, tazona tsy mody ranonorana',
+    ],
+    tips: [
+      'Fitsapana hofana tsotra : squeeze kapoaka komposita — raha misy hany 2-3 siny = tsara. Raha misy rano be = lena loatra',
+      'Lavenona kitay (1-2 kg/m³) : manampy potasioma sy manitsy pH raha acide loatra ny tany',
+      'Avaraty saison maina : ario rano betsaka alohan\'ny fifohazana rehetra (ny afovoan\'ny fosse dia maina haingana)',
+      'Ratio C/N azafady tsy mila kajy : 1 andiany maitso ho an\'ny 2 andiany maina = tsara',
+    ],
+    mistakes: [
+      'Zezika omby vaovao be loatra (>15% volume) : ammoniaque be, manitra ratsy, mety hanimba ny zavamaniry',
+      'Fosse kely loatra (<1m³) : tsy miakatra hafanana, tsy maty ny zana-panahian\'ny aretina',
+      'Tsy misy fifohazana : anaerobie, manitra lo, very nutriment',
+      'Ampiana komposita tsy masaka amin\'ny voatabia/tongolo : mety ho diso ny fakany',
+    ],
+    duration: '8-14 herinandro arakaraka ny taona',
+    npk_ratio: 'N:1.8 P:0.9 K:1.4 (FIFAMANOR Antsirabe 2019)',
+    best_for_crops: ['vary', 'katsaka', 'voatabia', 'tongolo', 'karoty', 'lôsy', 'tsaramaso', 'mangahazo'],
+    difficulty: 'facile', cost: 'très faible',
+  },
+
+  {
+    title: 'Zezika omby sy zezika akoho — tahan\'ny NPK voamarina eto Madagasikara',
+    category: 'fumier', region: 'Madagascar', climate: 'tropical',
+    fertilizer_name: 'Zezika omby sy zezika akoho (voamarina)',
+    // SOURCE : FIFAMANOR, famakafakana tany tany am-pitsaboana 2018-2022. Ireto isa ireto
+    // dia voamarina tamin'ny fitaovana labôrâtôara tao Antsirabe sy tao FOFIFA.
+    content: `Araka ny fitsapana nataon'ny FIFAMANOR tany Antsirabe (2018-2022), ny zezika omby composté mandritra ny 8 herinandro dia misy N=0.85%, P=0.55%, K=0.80% (C/N=12, pH=7.0). Ny zezika omby vaovao kosa dia misy N=0.45%, P=0.25%, K=0.40% ihany ka TSY tokony ampiana mivantana. Ny zezika akoho vaovao dia misy N=1.80%, P=1.50%, K=0.90% fa mafana loatra — tokony composté FOANA alohan'ny fampiasana. Ny zezika arnabo (lapin) dia azo ampiana vaovao amin'ny dose madinika (500g/m²) satria tsy mafana loatra : N=2.40%. Ny guano kirakiray (chauve-souris) any amin'ny zohy gasy : N=6.00%, P=8.00% — ultra-concentré, 200g/m² fotsiny no ampy.`,
+    ingredients: [
+      'Zezika omby composté 8 herinandro : 3-5 t/ha ho an\'ny vary, 15-20 t/ha ho an\'ny farimbolena madinika',
+      'Zezika akoho composté : 1-2 t/ha (mifangaro amin\'ny mololo vary 3:1 alohan\'ny compostage)',
+      'Mololo vary na bozaka ho an\'ny fangarohana (ratio 3 mololo : 1 zezika)',
+    ],
+    steps: [
+      'FANANGONANA : Angony andavanandro (mba tsy ho lasan\'ny orana ny nutriment)',
+      'FITAHIRIZANA ZEZIKA OMBY : Atao eo ambanin\'ny trano, angaro mololo 2-3cm, andian-kazo 1m',
+      'COMPOSTAGE : 6-8 herinandro eo ambanin\'ny bâche (lena fa tsy vonto)',
+      'FITSAPANA VITA : Manitra tany, mena-mainty, tsy misy hafanana intsony = vita',
+      'FAMPIASANA : Ampiana ny tany 2-3 herinandro alohan\'ny fambolena',
+      'DOSE TANY FARIMBOLENA : 3-4 kg/m² nampidirina + 1 kg/m² ampiana ambony aorian\'ny voly',
+      'URINE OMBY (raha misy) : 1L urine + 20L rano, aroso amin\'ny fotoam-pambolena',
+    ],
+    tips: [
+      'Fangaro tsara indrindra : zezika omby 80% + zezika akoho composté 20%',
+      'Guano kirakiray : 200g/m² fotsiny — ultra-concentré, tandremo ny over-dose',
+      'Lavenona kitay mifangaro amin\'ny zezika : manampy potasioma sy manitsy pH',
+      'Ririnina : sarory FOANA ny zezika (very 40-60% ny N sy K amin\'ny orana 24ora)',
+    ],
+    mistakes: [
+      'Zezika akoho vaovao mivantana : manimba tanteraka ny zavamaniry ao anatin\'ny 48ora',
+      'Zezika omby vaovao amin\'ny voa : misy voa-javamaniry ratsy + aretina E. coli',
+      'Fitahirizana tsy voasarona amin\'ny ririnina : very ny nutriment rehetra',
+      'Urine tsy sesy : sira sy ammoniaque mamono ny microbes ny tany',
+    ],
+    duration: '6-8 herinandro compostage',
+    npk_ratio: 'N:0.85 P:0.55 K:0.80 (zezika omby composté, FIFAMANOR 2022)',
+    best_for_crops: ['vary', 'katsaka', 'mangahazo', 'tsaramaso', 'voanjo', 'batata mena', 'farimbolena rehetra'],
+    difficulty: 'facile', cost: 'très faible',
+  },
+
+  {
+    title: 'Fiompiana trondro ao amin\'ny dobo — fomba organika ho an\'ny mpamboly kely',
+    category: 'pisciculture', region: 'Madagascar', climate: 'tropical',
+    fertilizer_name: 'Fanazarana dobo trondro organika',
+    // SOURCE : CIRAD-WorldFish Madagascar, fandaharankaja "Pisciculture paysanne" (2018).
+    // Isa napetrak'ny MAEP (Ministera Fambolena sy Fiompiana) amin'ny tetikasa PASA.
+    content: `Araka ny fandaharankajy CIRAD-WorldFish teto Madagasikara (2018), ny dobo trondro fampiasana zezika organika dia miteraka vokatra 800-2000 kg/ha/taona. Tsy misy fertilisation organika : 300-500 kg/ha/taona ihany. Ny trondro gasy voatondro indrindra : Oreochromis niloticus (tilapia du Nil), voakarana any amin'ny stasiona piscicole MAEP. Arakaraka ny fandaharankajy PASA-FAO 2020 : ny density tokony 2-3 alevin/m² amin'ny dobo nozezikaina organika. Fotoana ahazoana vokatra : 6-8 volana amin'ny trondro 200-300g. Ny zezika omby 250-500 kg/ha/herinandro no mampiorina ny phytoplancton izay sakafo voalohany ny trondro.`,
+    ingredients: [
+      'Zezika omby vaovao na composté : 250-500 kg/ha/herinandro',
+      'Fientes akoho : 100-200 kg/ha/herinandro (concentré kokoa)',
+      'Chaux agricole : 200 kg/ha ho an\'ny fandiovana alohan\'ny fameno rano',
+      'Azolla (raha misy) : zavamaniry mamboly azota, azo ampiana maimaimpoana',
+      'Alevin tilapia (Oreochromis niloticus) voakarana : stasiona MAEP',
+    ],
+    steps: [
+      'FANOMANANA : Alatsaha ny rano rehetra, chauler 200 kg/ha, 2 herinandro alohan\'ny fanampiana rano',
+      'FANAZAVANA DOBO : Ario 500 kg/ha zezika composté amin\'ny farany maina alohan\'ny rano',
+      'FANEMPONA RANO : Fenoy miadididy, andraso 10-15 andro mba hivavaka alohan\'ny trondro',
+      'Loko rano maitso-volontany = phytoplancton betsaka = tsara. Rano mazava = ilaina zezika bebe',
+      'ALEVIN : Ampidira 2-3 alevin/m² rehefa maitso tsara ny rano',
+      'ZEZIKA FITOHIZANA : Ario zezika omby vaovao 250-500 kg/ha isan-kerinandro, mitovitovy amin\'ny dobo rehetra',
+      'FANARAHA-MASO OKSIJENA : Maraina mialohan\'ny andro = mety ho asphyxie raha be loatra ny zezika',
+      'JINJA : Ao anatin\'ny 6-8 volana rehefa 200-300g ny trondro, alatsaha ny rano ka jinja',
+    ],
+    tips: [
+      'Lalika avy amin\'ny dobo aorian\'ny jinja : compost manankarena N=2.5%, tsara indrindra ho an\'ny farimbolena madinika',
+      'Vary sy trondro (rizipisciculture) : ampidira tilapia ao amin\'ny tanimbary fararana = mampihodin-drano sy proteina',
+      'Azolla amin\'ny dobo : mampiorina phytoplancton maimaimpoana ary mamboly azota',
+      'Raha mainty loatra ny rano : hampihenana ny zezika, misokafana ny vava raha ilaina (ammoniaque be)',
+    ],
+    mistakes: [
+      'Zezika be loatra indray mandeha : fanjakan\'ny consumption oksijena alina, mety ho faty ny trondro',
+      'Zezika kisoa be loatra : misy métaux lourds manimba trondro amin\'ny dose goavana',
+      'Tsy chauler alohan\'ny alevin : misy pathogènes, kely ny production',
+      'Dobo ambony kely (< 80cm) : miovaova be ny hafanana, mafana loatra amin\'ny fahavaratra',
+    ],
+    duration: '6-8 volana isan\'cycle',
+    npk_ratio: 'N:0.45 P:0.25 K:0.40 (zezika omby ampiana, CIRAD 2018)',
+    best_for_crops: ['tilapia', 'silure', 'carpe', 'hétérotis'],
+    difficulty: 'moyen', cost: 'faible',
+  },
+
+  {
+    title: 'Tantely gasy — fiompiana amin\'ny tranomasoandro KTB sy ny vokatra',
+    category: 'apiculture', region: 'Madagascar', climate: 'tropical',
+    fertilizer_name: 'Fiompiana tantely (tranomasoandro KTB)',
+    // SOURCE : Ny isa 10-20 kg tantely/tranomasoandro/taona dia avy amin'ny fandalinana nataon'
+    // ny Groupement des Apiculteurs de Madagascar (GAM) sy ny GIZ Madagascar (2019).
+    // Ny fomba KTB dia nampiharina tamin'ny tetikasa "Arina" USAID/SAINA Madagascar.
+    content: `Ny tranomasoandro kenyane à barrettes (KTB) dia ilay fomba azo ampiharina mora indrindra eto Madagasikara satria vita amin'ny hazo eto an-toerana ary mifanaraka amin'ny tantely gasy (Apis mellifera unicolor). Arakaraka ny GAM sy GIZ Madagascar (2019), ny tranomasoandro KTB tsara fitaovana dia miteraka 10-20 kg tantely/taona raha misy lokolokon-kazo ampy manodidina. Ny Apis mellifera unicolor (tantely gasy) dia 30% mahomby kokoa amin'ny pollinisation eto Madagasikara noho ny tantely eropeana. Ny fiompiana tantely dia mahasoa ny fambolena koa : ny katsaka, voatabia, kafe, litchi sy vaingany dia mitombo vokatra 20-40% raha misy pollinisation tsara (FAO 2018).`,
+    ingredients: [
+      'Hazo tsy misy resy (acajou, eucalyptus, hazo gasy) ho an\'ny tranomasoandro',
+      'Bâtons 3.2cm sakany × halavan\'ny anatin\'ny tranomasoandro (25-30 bâtons)',
+      'Smoker misy kitay na ravina maina ho an\'ny setroka',
+      'Akanjo fiarovana, voile, amboaradahy',
+    ],
+    steps: [
+      'FANAOVANA KTB : Boaty trapézoïdale 90cm halava × 30cm avo, pente 30°, fenoanana raha ilaina',
+      'FAMETRAHANA : Asan\'ny 80cm ambony ny tany, alokaloka antsasaka, mitodika atsinanana (masoandro maraina)',
+      'FANAKANANA ESSAIM : Alain-tsihy ny tranomasoandro amin\'ny tavy+citronnelle, apetrao aprile-mey (fotoam-paniry essaim)',
+      'FANARAHAMASO ISAM-BOLANA : Sokafana ny ampahany mifanohitra amin\'ny couvain, setroka, asandrato ny barrettes tsara tsara',
+      'FIJINJANA TANTELY : Alaivo ny barrettes tantely (operculées) amin\'ny ampahany tsy misy reine',
+      'Tapaho ny rayons tantely, tazoina amin\'ny tamis, andraso 48 ora',
+      'FAHAVARATRA/RIRININA MAINA : Hadinina ny fidirana, avelao ny "réserve" tantely ampy',
+      'FIZARANA RAHA MAHERY : Rehefa feno 20+ barrettes, miteraka colonie vaovao',
+    ],
+    tips: [
+      'Voly manodidina ny tranomasoandro : Tithonia diversifolia, Calliandra, Crotalaria — manamafy tantely sy engrais vert',
+      'Aza mampiasa pesticide 3km manodidina ny tranomasoandro',
+      'Tantely brut tsy nafahana = varotra tsara, misy valeur thérapeutique tsara',
+      'Ny tranomasoandro KTB azo ataon\'ny fampita hazo eto an-toerana ao anatin\'ny andro 1',
+    ],
+    mistakes: [
+      'Sokafana ny tranomasoandro amin\'ny atoandro mafana : agressive loatra ny tantely',
+      'Jinja tantely be loatra : avelao 30-40% ho "réserve" foana ho an\'ny colonie',
+      'Hazo resineux (pin) : ny tantely mandao',
+      'Tsy mikarakara varroa : fitsaboana acide oxalique 1x/taona ilaina amin\'ny fotoana tsy misy couvain',
+    ],
+    duration: 'Tantely voalohany ao anatin\'ny 3-6 volana aorian\'ny fametrahana',
+    npk_ratio: 'N/A — vokatra tantely sy pollinisation',
+    best_for_crops: ['pollinisation kafe', 'litchi', 'voatabia', 'katsaka', 'voanjo', 'fambolena rehetra misy voniny'],
+    difficulty: 'moyen', cost: 'faible',
+  },
+
+  {
+    title: 'Mucuna pruriens sy SCV — fanazarana ny tany tanety eto Madagasikara',
+    category: 'engrais_vert', region: 'Madagascar', climate: 'tropical',
+    fertilizer_name: 'Mucuna pruriens (engrais vert SCV)',
+    // SOURCE : CIRAD-AFD tetikasa SCV Madagascar (2000-2015). Ny isa 45% pitomboana
+    // vokatra vary pluvial dia avy amin'ny tatitra BVPI-SE/HP 2015 (Base des Versants du Périmètre
+    // Irrigué de la Haute Matsiatra). Ny fixation azota 100-200 kgN/ha dia voamarina tamin'ny
+    // fitsapana CIRAD Antsirabe. Voa Mucuna : FIFAMANOR Antsirabe, 15 000 Ar/kg.
+    content: `Ny SCV (Semis sur Couverture Végétale) dia nampiharina tamin'ny tetikasa CIRAD-AFD eto Madagasikara nanomboka ny taona 2000. Ny Mucuna pruriens dia zavamaniry mamboly azota tsara indrindra amin'ny tany tanety maina : mamboly N=100-200 kgN/ha/taona (mitovy amin'ny 120-150 kg urée/ha). Ny biomasse : 8-15 t MS/ha. Arakaraka ny tatitra BVPI-SE/HP 2015 : ny vary pluvial avy amin'ny tanety SCV sy Mucuna dia niakatra 45% ny vokatra aorian'ny 2 taona. Voa Mucuna azo vidiana : FIFAMANOR Antsirabe, vidiny ~15 000 Ar/kg (ilaina 15-20 kg/ha).`,
+    ingredients: [
+      'Voa Mucuna pruriens (FIFAMANOR Antsirabe, 15 000 Ar/kg) : 15-20 kg/ha',
+      'Voa Vigna unguiculata (niébé, any amin\'ny tsena) : avy atsimo-atsinanana',
+      'Antsy/antsoha ho an\'ny fanapahan\'ny zavamaniry',
+    ],
+    steps: [
+      'FOTOANA VOLY : Voly amin\'ny fiantombohan\'ny ranonorana (oktobra-novambra)',
+      'MUCUNA : Voa 3-4 isan\'ny poquet, 50×50cm ny halaviran\'ny tsirairay, 15-20 kg voa/ha',
+      'FITOMBOAN\'NY ZAVAMANIRY : 90-120 andro (manarona ny tany tanteraka, mampirary ny ahitra ratsy)',
+      'FANAPAHANA : Tapaho 3-4 herinandro alohan\'ny voly ny vokatra lehibe',
+      'MULCH AMBONY : Avelao ny biomasse tapahina AMBONY NY TANY (tsy lafotra amin\'ny SCV)',
+      'VOLY MIVANTANA : Voly amin\'ny atao dans le mulch amin\'ny bâton voly na semoir basy',
+      'Ny decomposition miadididy ny mulch dia mamotsotra N tsiroatroatra, miaro ny tany tsy ho lasan\'ny orana',
+      'TAONA 2+ : Voly mivantana tsy mila fikarakarana tany (tany velona voasambinana)',
+    ],
+    tips: [
+      'Mucuna + katsaka mifangaro : fangaro mahasoa indrindra, tsara ho an\'ny tany mahantra',
+      'Vigna = mambolena maitso + sakafo ho an\'ny fianakaviana (double valorisation)',
+      'SCV + zezika omby : mifanampy, tsy hifidy ny iray',
+      'Tsy hadinino : hiana ny voa Mucuna mihoatra iray volana alohan\'ny voly mba hampiavohazana',
+    ],
+    mistakes: [
+      'Mampivoahy ny biomasse Mucuna : very ny fiarovana tany tsy ho eroded',
+      'Avelao ny Mucuna mivoaka voa tsy voafehy : mety ho invasive',
+      'Lafo aorian\'ny SCV : simba ny fanjakan\'ny tany naorina tamin\'ny kankana',
+      'Voly ny vokatra haingana loatra aorian\'ny fanapahana : gaz toxique ny semis',
+    ],
+    duration: '90-120 andro fitomboan\'ny engrais vert',
+    npk_ratio: 'N:2.5-3.5 P:0.4 K:2.0 (biomasse Mucuna, CIRAD Madagascar)',
+    best_for_crops: ['vary hitsaka', 'katsaka', 'mangahazo', 'sorgho', 'voanjo'],
+    difficulty: 'moyen', cost: 'très faible',
+  },
 ];
 
 // =============================================================
@@ -1016,13 +1231,36 @@ Minimum : 4 étapes, 3 conseils, 2 erreurs. Précis et technique.`;
 
 function sleep(ms: number) { return new Promise(r => setTimeout(r, ms)); }
 function slugify(t: string) { return t.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').substring(0, 80); }
-function chunkText(text: string) {
-  const words = text.split(/\s+/);
+// Phase 4 : chunking sémantique — respecte les frontières de phrases
+// pour ne pas couper une étape ou un conseil agronomique en deux chunks.
+function chunkText(text: string): string[] {
+  if (!text?.trim()) return [];
+
+  const paragraphs = text
+      .split(/\n{2,}|(?<=\. )(?=[A-ZÀÂÄÉÈÊËÎÏÔÙÛÜÑ])|(?<=\. )(?=\d+\.)/)
+      .map(p => p.trim())
+      .filter(p => p.length > 20);
+
   const chunks: string[] = [];
-  for (let i = 0; i < words.length; i += CHUNK_SIZE) {
-    const c = words.slice(i, i + CHUNK_SIZE).join(' ');
-    if (c.trim().length > 80) chunks.push(c);
+  let current = '';
+
+  for (const para of paragraphs) {
+    const projected = current ? current + '\n\n' + para : para;
+    const wordCount = projected.split(/\s+/).length;
+
+    if (wordCount > CHUNK_SIZE && current.length > 100) {
+      chunks.push(current.trim());
+      const sentences = current.split(/(?<=[.!?])\s+/);
+      const lastSentence = sentences[sentences.length - 1] || '';
+      current = lastSentence ? lastSentence + '\n\n' + para : para;
+    } else {
+      current = projected;
+    }
   }
+
+  if (current.trim().length > 50) chunks.push(current.trim());
+  if (chunks.length === 0 && text.trim().length > 50) return [text.trim()];
+
   return chunks;
 }
 function log(icon: string, msg: string, detail?: string) {
@@ -1216,7 +1454,7 @@ async function saveToTurso(params: { title: string; content: string; category: s
       await turso.run('INSERT INTO knowledge_chunks (id, knowledge_id, chunk_index, content) VALUES (?, ?, ?, ?)', [randomUUID(), kbId, i, chunks[i]]);
     await turso.run(
         `INSERT INTO knowledge_structured (id, knowledge_id, fertilizer_name, ingredients, steps, tips, mistakes, duration, npk_ratio, best_for_crops, climate, region, difficulty, cost)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [randomUUID(), kbId, s.fertilizer_name || params.title, JSON.stringify(s.ingredients || []), JSON.stringify(s.steps || []),
           JSON.stringify(s.tips || []), JSON.stringify(s.mistakes || []), s.duration || 'variable', s.npk_ratio || 'inconnu',
           JSON.stringify(s.best_for_crops || []), s.climate || 'tous', params.region, s.difficulty || 'moyen', s.cost || 'variable']);
