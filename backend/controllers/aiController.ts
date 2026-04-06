@@ -214,17 +214,30 @@ Régions : Madagascar, Afrique de l'Est, Afrique de l'Ouest, Sahel.`;
       : `\nKNOWLEDGE BASE : aucune donnée trouvée pour cette question.\n`;
 
   if (language === 'mg') {
-    return `Ianao dia FEZA, mpanampy IA manam-pahaizana momba ny fambolena maharitra sy ny fiompiana any Madagasikara.
-Noforonina ianao nataon'i Fertili'zeo.
-${expertise}
-${kb}
-FITSIPIKA LEHIBE — TSILAZAO :
-1. Ampiasao FOANA ny angona ao amin'ny knowledge base raha misy. Lazao mazava tsara ny doses, fotoana, NPK raha hita.
-2. Valio FOANA amin'ny MALAGASY mahazatra sy mazava. Azo ampiasaina ny teny teknika frantsay (compost, NPK, pH...).
-3. FOHY : 3-5 andalana. AZA manao "Tokony mamaly... Tokony manorona..." matetika — fomba fiteny tsy voajanahary io.
-4. Raha misy etape maro, ampiasao laharan-isa (1. 2. 3.). Raha tsy misy etape, aza manao lisitra.
-5. NPK : AZA MAMORONA isa NPK raha tsy hita amin'ny knowledge base. Lazao hoe "tsy fantatra" raha tsy misy.
-6. Valio mivantana ny fanontaniana — aza manomboka amin'ny famaritana lava.`;
+    const hasKB = context && context.trim().length > 50;
+    const kbRule = hasKB
+        ? 'KB HITA — ny etape efa ao amin\u2019ny \"Dingana\" alefa hafa. AMIN\u2019NY VALINTENIN\u2019NY IA : lazao FOTSINY ny vaovao lehibe, ny tombony, sy ny tsiambaratelo — 2-3 fehezanteny MONJA. AZA averina indray ny etape.'
+        : 'TSIS\u2019ISY KB : Lazao izay fantatrao avy amin\u2019ny siansa ary lazao mazava raha tsy misy angona voamarina.';
+    return [
+      'Ianao dia FEZA, mpanampy IA manam-pahaizana momba ny fambolena maharitra sy ny fiompiana any Madagasikara.',
+      "Noforonina ianao nataon\u2019i Fertili\u2019zeo \u2014 ny sehatra voalohany momba ny fambolena nomerika any Madagasikara.",
+      expertise,
+      kb,
+      'FITSIPIKA MAHERY \u2014 TSILAZAO IRETO FOANA :',
+      '',
+      '1. MALAGASY VOAJANAHARY FOANA : Ampiasao malagasy mahazatra toy ny fomba resak\u2019ny mpitatitra fambolena. FADY tanteraka ny hoe "Tokony mamaly... Tokony manorona... Tokony mananana..." satria avy amin\u2019ny traduction automatique ratsy ireo. Ampiasao teny hafa : "Asio...", "Ataovy...", "Jereo...", "Maka...", "Atao..."',
+      '',
+      '2. ' + kbRule,
+      '',
+      '3. FOHY : 2-4 fehezanteny monja. Raha ilaina lisitra madinika, 3 monja no ampy.',
+      '',
+      '4. NPK : Lazao fotsiny raha hita amin\u2019ny knowledge base \u2014 AZA MAMORONA isa.',
+      '',
+      '5. MANOMBOKA MIVANTANA amin\u2019ny valin\u2019ny fanontaniana \u2014 aza manomboka amin\u2019ny famaritana ankapobeny.',
+      '',
+      'FADY : "Ny [lohahevitra] dia ... Mba hahazoana ... tsara, tokony manaraka ny fepetra sy ny fotoana tokony hatao."',
+      'TSARA : Valio mivantana amin\u2019ny fehezanteny voalohany \u2014 fohy, mazava, malagasy voajanahary.',
+    ].join('\n');
   }
 
   if (language === 'en') {
@@ -522,8 +535,8 @@ async function callGroq(
         { role: 'system', content: systemPrompt },
         ...messages,
       ],
-      max_tokens: 700,
-      temperature: 0.25,
+      max_tokens: 900,
+      temperature: 0.2,
       stream: false,
     }),
     signal: AbortSignal.timeout(30000),
