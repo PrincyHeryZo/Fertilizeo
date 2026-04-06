@@ -41,7 +41,19 @@ const Navbar: React.FC = () => {
     };
     fetchCounts();
     const interval = setInterval(fetchCounts, 30000);
-    return () => clearInterval(interval);
+
+    // Écouter les events des pages Notifications et Messages
+    // pour remettre les badges à 0 instantanément sans attendre le poll
+    const onNotifRead = () => setNotifCount(0);
+    const onMsgRead   = () => fetchCounts(); // recompte précis
+    window.addEventListener('notif-read', onNotifRead);
+    window.addEventListener('msg-read', onMsgRead);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('notif-read', onNotifRead);
+      window.removeEventListener('msg-read', onMsgRead);
+    };
   }, [user]);
 
   useEffect(() => {

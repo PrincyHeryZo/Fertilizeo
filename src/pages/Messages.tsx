@@ -114,7 +114,20 @@ const Messages: React.FC = () => {
                     <p className="text-sm">Aucune conversation</p>
                   </div>
               ) : conversations.map(conv => (
-                  <button key={conv.userId} onClick={() => setSelectedUserId(conv.userId)}
+                  <button key={conv.userId} onClick={async () => {
+                    setSelectedUserId(conv.userId);
+                    // Marquer les messages de cette conv comme lus
+                    if (conv.unread > 0) {
+                      try {
+                        await api.put('/messages/read', { sender_id: conv.userId });
+                        setConversations(prev => prev.map(c =>
+                            c.userId === conv.userId ? { ...c, unread: 0 } : c
+                        ));
+                        // Signaler à la Navbar de décrémenter le badge
+                        window.dispatchEvent(new CustomEvent('msg-read'));
+                      } catch { /* silencieux */ }
+                    }
+                  }}
                           className={`w-full p-4 flex items-center gap-3 hover:bg-gray-50 transition-all text-left ${selectedUserId === conv.userId ? 'bg-emerald-50 border-r-4 border-emerald-500' : ''}`}>
                     <div className="w-10 h-10 bg-emerald-100 rounded-full flex items-center justify-center text-emerald-700 font-bold flex-shrink-0">
                       {conv.userName.charAt(0).toUpperCase()}
