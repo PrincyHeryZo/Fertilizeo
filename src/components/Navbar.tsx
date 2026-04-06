@@ -8,17 +8,41 @@ const Navbar: React.FC = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const [cartCount, setCartCount] = useState(0);
-  const [scrolled, setScrolled] = useState(false);
+  const [cartCount, setCartCount]   = useState(0);
+  const [notifCount, setNotifCount] = useState(0);
+  const [msgCount, setMsgCount]     = useState(0);
+  const [scrolled, setScrolled]     = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  // Update cart count for current user only
+  // Panier : mis à jour en temps réel toutes les 500ms
   useEffect(() => {
     const update = () => setCartCount(getCartCount(user?.id));
     update();
     const interval = setInterval(update, 500);
     return () => clearInterval(interval);
   }, [user?.id]);
+
+  // Notifications et messages non lus : rechargés toutes les 30s
+  useEffect(() => {
+    if (!user) { setNotifCount(0); setMsgCount(0); return; }
+    const fetchCounts = async () => {
+      try {
+        const [notifRes, msgRes] = await Promise.allSettled([
+          import('../services/api.ts').then(m => m.default.get('/notifications')),
+          import('../services/api.ts').then(m => m.default.get('/messages')),
+        ]);
+        if (notifRes.status === 'fulfilled') {
+          setNotifCount(notifRes.value.data.filter((n: any) => !n.is_read).length);
+        }
+        if (msgRes.status === 'fulfilled') {
+          setMsgCount(msgRes.value.data.filter((m: any) => !m.is_read && m.receiver_id === user.id).length);
+        }
+      } catch { /* silencieux */ }
+    };
+    fetchCounts();
+    const interval = setInterval(fetchCounts, 30000);
+    return () => clearInterval(interval);
+  }, [user]);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 20);
@@ -68,12 +92,22 @@ const Navbar: React.FC = () => {
               {user ? (
                   <>
                     <Link to="/messages" title="Messages"
-                          className="p-2.5 text-gray-500 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all">
+                          className="relative p-2.5 text-gray-500 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all">
                       <MessageSquare size={20} />
+                      {msgCount > 0 && (
+                          <span className="absolute -top-0.5 -right-0.5 w-5 h-5 bg-blue-500 text-white text-xs font-black rounded-full flex items-center justify-center">
+                          {msgCount > 9 ? '9+' : msgCount}
+                        </span>
+                      )}
                     </Link>
                     <Link to="/notifications" title="Notifications"
-                          className="p-2.5 text-gray-500 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all">
+                          className="relative p-2.5 text-gray-500 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all">
                       <Bell size={20} />
+                      {notifCount > 0 && (
+                          <span className="absolute -top-0.5 -right-0.5 w-5 h-5 bg-red-500 text-white text-xs font-black rounded-full flex items-center justify-center">
+                          {notifCount > 9 ? '9+' : notifCount}
+                        </span>
+                      )}
                     </Link>
                     <Link to="/cart" title="Panier" className="relative p-2.5 text-gray-500 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all">
                       <ShoppingCart size={20} />

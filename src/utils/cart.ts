@@ -9,6 +9,8 @@ export interface CartItem {
   quantity: number;
   image_url: string;
   stock: number;
+  producer_id?: number;
+  producer_name?: string;
 }
 
 export const getCartKey = (userId?: number): string => {

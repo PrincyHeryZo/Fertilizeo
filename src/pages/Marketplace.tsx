@@ -59,7 +59,9 @@ const Marketplace: React.FC = () => {
       price: product.price,
       quantity: 1,
       image_url: product.image_url,
-      stock: product.stock
+      stock: product.stock,
+      producer_id: (product as any).producer_id,
+      producer_name: product.producer_name,
     }, user?.id);
     if (result.success) {
       toast.success(result.message, { icon: '🛒' });

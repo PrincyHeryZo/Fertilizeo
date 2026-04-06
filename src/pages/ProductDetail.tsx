@@ -93,7 +93,7 @@ const ProductDetail: React.FC = () => {
     if (existing) {
       existing.quantity = newQty;
     } else {
-      cart.push({ id: product.id, name: product.name, price: product.price, quantity, image_url: product.image_url, stock: product.stock });
+      cart.push({ id: product.id, name: product.name, price: product.price, quantity, image_url: product.image_url, stock: product.stock, producer_id: product.producer_id, producer_name: product.producer_name });
     }
     saveCart(cart, user?.id);
     toast.success(`${quantity}x ${product.name} ajouté au panier !`, { icon: '🛒' });

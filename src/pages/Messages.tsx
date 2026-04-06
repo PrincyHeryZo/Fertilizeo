@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'motion/react';
-import { Send, MessageSquare, Search } from 'lucide-react';
+import { Send, MessageSquare, Search, Plus } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
 import api from '../services/api.ts';
 import { useAuth } from '../context/AuthContext.tsx';
 import toast from 'react-hot-toast';
@@ -25,6 +26,7 @@ interface Conversation {
 
 const Messages: React.FC = () => {
   const { user } = useAuth();
+  const [searchParams] = useSearchParams();
   const [messages, setMessages] = useState<Message[]>([]);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
@@ -34,6 +36,15 @@ const Messages: React.FC = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => { fetchMessages(); }, []);
+
+  // Ouvrir directement la conversation avec un vendeur si ?to= est présent dans l'URL
+  useEffect(() => {
+    const toParam = searchParams.get('to');
+    if (toParam) {
+      const targetId = parseInt(toParam);
+      if (!isNaN(targetId)) setSelectedUserId(targetId);
+    }
+  }, [searchParams]);
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
 
   const fetchMessages = async () => {
@@ -62,8 +73,8 @@ const Messages: React.FC = () => {
   };
 
   const currentMessages = messages
-    .filter(m => (m.sender_id === user?.id && m.receiver_id === selectedUserId) || (m.receiver_id === user?.id && m.sender_id === selectedUserId))
-    .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+      .filter(m => (m.sender_id === user?.id && m.receiver_id === selectedUserId) || (m.receiver_id === user?.id && m.sender_id === selectedUserId))
+      .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
 
   const selectedConv = conversations.find(c => c.userId === selectedUserId);
 
@@ -82,94 +93,94 @@ const Messages: React.FC = () => {
   };
 
   return (
-    <div className="p-6 max-w-6xl mx-auto h-[calc(100vh-80px)]">
-      <h1 className="text-3xl font-bold text-gray-900 mb-6 tracking-tight">Messagerie</h1>
-      <div className="bg-white rounded-3xl border border-gray-100 shadow-sm flex h-[calc(100%-80px)] overflow-hidden">
-        <div className="w-80 border-r border-gray-100 flex flex-col flex-shrink-0">
-          <div className="p-4 border-b border-gray-100">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-              <input placeholder="Rechercher..." className="w-full pl-9 pr-4 py-2 bg-gray-50 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-300" />
+      <div className="p-6 max-w-6xl mx-auto h-[calc(100vh-80px)]">
+        <h1 className="text-3xl font-bold text-gray-900 mb-6 tracking-tight">Messagerie</h1>
+        <div className="bg-white rounded-3xl border border-gray-100 shadow-sm flex h-[calc(100%-80px)] overflow-hidden">
+          <div className="w-80 border-r border-gray-100 flex flex-col flex-shrink-0">
+            <div className="p-4 border-b border-gray-100">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                <input placeholder="Rechercher..." className="w-full pl-9 pr-4 py-2 bg-gray-50 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-300" />
+              </div>
             </div>
-          </div>
-          <div className="flex-1 overflow-y-auto">
-            {loading ? (
-              <div className="p-4 space-y-3">
-                {[1,2,3].map(i => <div key={i} className="h-16 bg-gray-100 rounded-2xl animate-pulse" />)}
-              </div>
-            ) : conversations.length === 0 ? (
-              <div className="p-8 text-center text-gray-400">
-                <MessageSquare size={40} className="mx-auto mb-3 opacity-50" />
-                <p className="text-sm">Aucune conversation</p>
-              </div>
-            ) : conversations.map(conv => (
-              <button key={conv.userId} onClick={() => setSelectedUserId(conv.userId)}
-                className={`w-full p-4 flex items-center gap-3 hover:bg-gray-50 transition-all text-left ${selectedUserId === conv.userId ? 'bg-emerald-50 border-r-4 border-emerald-500' : ''}`}>
-                <div className="w-10 h-10 bg-emerald-100 rounded-full flex items-center justify-center text-emerald-700 font-bold flex-shrink-0">
-                  {conv.userName.charAt(0).toUpperCase()}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex justify-between items-center">
-                    <p className="font-bold text-gray-900 text-sm truncate">{conv.userName}</p>
-                    {conv.unread > 0 && <span className="bg-emerald-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold">{conv.unread}</span>}
+            <div className="flex-1 overflow-y-auto">
+              {loading ? (
+                  <div className="p-4 space-y-3">
+                    {[1,2,3].map(i => <div key={i} className="h-16 bg-gray-100 rounded-2xl animate-pulse" />)}
                   </div>
-                  <p className="text-xs text-gray-500 truncate mt-0.5">{conv.lastMessage}</p>
-                </div>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="flex-1 flex flex-col">
-          {selectedUserId && selectedConv ? (
-            <>
-              <div className="p-5 border-b border-gray-100 flex items-center gap-3">
-                <div className="w-10 h-10 bg-emerald-100 rounded-full flex items-center justify-center text-emerald-700 font-bold">
-                  {selectedConv.userName.charAt(0).toUpperCase()}
-                </div>
-                <p className="font-bold text-gray-900">{selectedConv.userName}</p>
-              </div>
-              <div className="flex-1 overflow-y-auto p-6 space-y-4">
-                {currentMessages.map((msg) => {
-                  const isMe = msg.sender_id === user?.id;
-                  return (
-                    <motion.div key={msg.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-                      className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
-                      <div className={`max-w-[70%] px-4 py-3 rounded-2xl text-sm ${isMe ? 'bg-emerald-600 text-white rounded-br-sm' : 'bg-gray-100 text-gray-800 rounded-bl-sm'}`}>
-                        <p>{msg.content}</p>
-                        <p className={`text-xs mt-1 ${isMe ? 'text-emerald-200' : 'text-gray-400'}`}>
-                          {new Date(msg.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
-                        </p>
+              ) : conversations.length === 0 ? (
+                  <div className="p-8 text-center text-gray-400">
+                    <MessageSquare size={40} className="mx-auto mb-3 opacity-50" />
+                    <p className="text-sm">Aucune conversation</p>
+                  </div>
+              ) : conversations.map(conv => (
+                  <button key={conv.userId} onClick={() => setSelectedUserId(conv.userId)}
+                          className={`w-full p-4 flex items-center gap-3 hover:bg-gray-50 transition-all text-left ${selectedUserId === conv.userId ? 'bg-emerald-50 border-r-4 border-emerald-500' : ''}`}>
+                    <div className="w-10 h-10 bg-emerald-100 rounded-full flex items-center justify-center text-emerald-700 font-bold flex-shrink-0">
+                      {conv.userName.charAt(0).toUpperCase()}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex justify-between items-center">
+                        <p className="font-bold text-gray-900 text-sm truncate">{conv.userName}</p>
+                        {conv.unread > 0 && <span className="bg-emerald-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold">{conv.unread}</span>}
                       </div>
-                    </motion.div>
-                  );
-                })}
-                <div ref={messagesEndRef} />
-              </div>
-              <div className="p-4 border-t border-gray-100">
-                <div className="flex gap-3">
-                  <input value={newMessage} onChange={e => setNewMessage(e.target.value)}
-                    onKeyDown={e => e.key === 'Enter' && !e.shiftKey && handleSend()}
-                    placeholder="Écrivez votre message..."
-                    className="flex-1 bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 outline-none focus:ring-2 focus:ring-emerald-300 text-sm" />
-                  <button onClick={handleSend} disabled={sending || !newMessage.trim()}
-                    className="bg-emerald-600 hover:bg-emerald-700 text-white p-3 rounded-2xl transition-all disabled:opacity-50">
-                    {sending ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Send size={20} />}
+                      <p className="text-xs text-gray-500 truncate mt-0.5">{conv.lastMessage}</p>
+                    </div>
                   </button>
-                </div>
-              </div>
-            </>
-          ) : (
-            <div className="flex-1 flex items-center justify-center text-center text-gray-400">
-              <div>
-                <MessageSquare size={56} className="mx-auto mb-4 opacity-30" />
-                <p className="text-lg font-medium">Sélectionnez une conversation</p>
-              </div>
+              ))}
             </div>
-          )}
+          </div>
+
+          <div className="flex-1 flex flex-col">
+            {selectedUserId && selectedConv ? (
+                <>
+                  <div className="p-5 border-b border-gray-100 flex items-center gap-3">
+                    <div className="w-10 h-10 bg-emerald-100 rounded-full flex items-center justify-center text-emerald-700 font-bold">
+                      {selectedConv.userName.charAt(0).toUpperCase()}
+                    </div>
+                    <p className="font-bold text-gray-900">{selectedConv.userName}</p>
+                  </div>
+                  <div className="flex-1 overflow-y-auto p-6 space-y-4">
+                    {currentMessages.map((msg) => {
+                      const isMe = msg.sender_id === user?.id;
+                      return (
+                          <motion.div key={msg.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+                                      className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
+                            <div className={`max-w-[70%] px-4 py-3 rounded-2xl text-sm ${isMe ? 'bg-emerald-600 text-white rounded-br-sm' : 'bg-gray-100 text-gray-800 rounded-bl-sm'}`}>
+                              <p>{msg.content}</p>
+                              <p className={`text-xs mt-1 ${isMe ? 'text-emerald-200' : 'text-gray-400'}`}>
+                                {new Date(msg.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                              </p>
+                            </div>
+                          </motion.div>
+                      );
+                    })}
+                    <div ref={messagesEndRef} />
+                  </div>
+                  <div className="p-4 border-t border-gray-100">
+                    <div className="flex gap-3">
+                      <input value={newMessage} onChange={e => setNewMessage(e.target.value)}
+                             onKeyDown={e => e.key === 'Enter' && !e.shiftKey && handleSend()}
+                             placeholder="Écrivez votre message..."
+                             className="flex-1 bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 outline-none focus:ring-2 focus:ring-emerald-300 text-sm" />
+                      <button onClick={handleSend} disabled={sending || !newMessage.trim()}
+                              className="bg-emerald-600 hover:bg-emerald-700 text-white p-3 rounded-2xl transition-all disabled:opacity-50">
+                        {sending ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Send size={20} />}
+                      </button>
+                    </div>
+                  </div>
+                </>
+            ) : (
+                <div className="flex-1 flex items-center justify-center text-center text-gray-400">
+                  <div>
+                    <MessageSquare size={56} className="mx-auto mb-4 opacity-30" />
+                    <p className="text-lg font-medium">Sélectionnez une conversation</p>
+                  </div>
+                </div>
+            )}
+          </div>
         </div>
       </div>
-    </div>
   );
 };
 
