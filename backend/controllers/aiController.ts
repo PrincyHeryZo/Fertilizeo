@@ -561,18 +561,23 @@ function extractStructured(
   const recentCtx = history.slice(-2).map(m => normalize(m.content)).join(' ');
   const searchCtx = q + ' ' + recentCtx;
 
-  // Trouver le meilleur chunk correspondant à la question
+  // Trouver le meilleur chunk structuré correspondant à la question.
+  // Règle stricte : le chunk doit matcher par nom OU titre court — jamais
+  // par catégorie seule (trop large : "apiculture" matcherait n'importe quelle
+  // fiche apiculture même hors sujet, ex: plantation litchi).
+  // Fallback : si aucun chunk structuré ne matche, ne pas afficher de steps
+  // du tout plutôt que d'afficher des steps non pertinentes.
   const bestChunk = chunks.find(c => {
     if (!c.fertilizer_name && !c.steps && !c.npk_ratio) return false;
     const name  = normalize(c.fertilizer_name || '');
     const title = normalize(c.title || '');
-    const cat   = normalize(c.category || '');
-    return (
-        (name.length > 3 && searchCtx.includes(name)) ||
-        (title.length > 3 && searchCtx.includes(title.substring(0, Math.min(title.length, 12)))) ||
-        searchCtx.includes(cat)
-    );
-  }) || (chunks[0]?.steps || chunks[0]?.fertilizer_name ? chunks[0] : null);
+    // Match par nom de fertilisant (ex: "komposita" dans la question)
+    if (name.length > 4 && searchCtx.includes(name)) return true;
+    // Match par mots significatifs du titre (min 8 chars pour éviter faux positifs)
+    const titleWords = title.split(/\s+/).filter(w => w.length >= 6);
+    if (titleWords.some(w => searchCtx.includes(w))) return true;
+    return false;
+  }) ?? null; // null si aucun chunk ne correspond — pas de fallback aveugle
 
   if (!bestChunk) return null;
 

@@ -52,6 +52,7 @@ const Navbar: React.FC = () => {
               {[
                 { to: '/marketplace', label: 'Marketplace' },
                 { to: '/forum', label: 'Forum' },
+                { to: '/conseils', label: 'Conseils IA' },
               ].map(link => (
                   <Link key={link.to} to={link.to}
                         className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
@@ -119,6 +120,7 @@ const Navbar: React.FC = () => {
             <div className="md:hidden border-t border-gray-100 bg-white px-4 py-3 space-y-1">
               <Link to="/marketplace" className="flex items-center gap-3 px-4 py-3 rounded-xl text-gray-700 font-semibold hover:bg-emerald-50 hover:text-emerald-700 transition-all">Marketplace</Link>
               <Link to="/forum" className="flex items-center gap-3 px-4 py-3 rounded-xl text-gray-700 font-semibold hover:bg-emerald-50 hover:text-emerald-700 transition-all">Forum</Link>
+              <Link to="/conseils" className="flex items-center gap-3 px-4 py-3 rounded-xl text-emerald-600 font-semibold hover:bg-emerald-50 hover:text-emerald-700 transition-all">Conseils IA</Link>
               {user ? (
                   <>
                     <Link to="/dashboard" className="flex items-center gap-3 px-4 py-3 rounded-xl text-gray-700 font-semibold hover:bg-emerald-50 hover:text-emerald-700 transition-all">

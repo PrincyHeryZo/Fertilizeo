@@ -2,6 +2,7 @@ import express from 'express';
 import * as authController from '../controllers/authController.ts';
 import * as productController from '../controllers/productController.ts';
 import * as orderController from '../controllers/orderController.ts';
+import { createReview } from '../controllers/productController.ts';
 import * as forumController from '../controllers/forumController.ts';
 import * as messageController from '../controllers/messageController.ts';
 import * as adminController from '../controllers/adminController.ts';
@@ -26,6 +27,7 @@ router.get('/products/nearby', productController.getNearbyProducts);
 router.get('/products/my', authenticateToken, productController.getMyProducts);
 router.get('/products/:id', productController.getProductById);
 router.get('/products/:id/reviews', productController.getProductReviews);
+router.post('/products/:id/reviews', authenticateToken, createReview);
 router.post('/products', authenticateToken, authorizeRoles('Producteur', 'Fournisseur', 'Administrateur'), validate(productSchema), productController.createProduct);
 router.put('/products/:id', authenticateToken, productController.updateProduct);
 router.delete('/products/:id', authenticateToken, productController.deleteProduct);
@@ -34,6 +36,8 @@ router.delete('/products/:id', authenticateToken, productController.deleteProduc
 router.post('/orders', authenticateToken, orderController.createOrder);
 router.get('/orders', authenticateToken, orderController.getMyOrders);
 router.get('/orders/:id', authenticateToken, orderController.getOrderById);
+router.put('/orders/:id/status', authenticateToken, orderController.updateOrderStatus);
+router.get('/orders/seller/mine', authenticateToken, orderController.getSellerOrders);
 
 // Forum
 router.get('/forum/posts', forumController.getAllPosts);

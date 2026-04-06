@@ -53,9 +53,9 @@ export const getNearbyProducts = async (req: Request, res: Response) => {
         const products = await db.all(`
             SELECT p.*, u.name as producer_name, u.location as producer_location
             FROM products p
-            JOIN users u ON p.producer_id = u.id
+                     JOIN users u ON p.producer_id = u.id
             WHERE p.is_approved = TRUE AND u.location LIKE ?
-            LIMIT 4
+                LIMIT 4
         `, [`%${location}%`]);
         res.json(products);
     } catch (error) {
@@ -138,12 +138,35 @@ export const getProductReviews = async (req: Request, res: Response) => {
         const reviews = await db.all(`
             SELECT r.*, u.name as reviewer_name
             FROM reviews r
-            JOIN users u ON r.user_id = u.id
+                     JOIN users u ON r.user_id = u.id
             WHERE r.product_id = ?
             ORDER BY r.created_at DESC
         `, [req.params.id]);
         res.json(reviews);
     } catch (error) {
         res.status(500).json({ message: 'Erreur lors de la récupération des avis.' });
+    }
+};
+
+export const createReview = async (req: any, res: Response) => {
+    const { rating, comment } = req.body;
+    const productId = req.params.id;
+    if (!rating || rating < 1 || rating > 5) {
+        return res.status(400).json({ message: 'Note entre 1 et 5 requise.' });
+    }
+    try {
+        const existing = await db.get(
+            'SELECT id FROM reviews WHERE product_id = ? AND user_id = ?',
+            [productId, req.user.id]
+        );
+        if (existing) return res.status(409).json({ message: 'Vous avez déjà noté ce produit.' });
+
+        await db.run(
+            'INSERT INTO reviews (product_id, user_id, rating, comment) VALUES (?, ?, ?, ?)',
+            [productId, req.user.id, rating, comment || '']
+        );
+        res.status(201).json({ message: 'Avis publié avec succès.' });
+    } catch (error) {
+        res.status(500).json({ message: 'Erreur lors de la publication.' });
     }
 };

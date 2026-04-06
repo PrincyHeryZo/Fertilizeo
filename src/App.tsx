@@ -25,6 +25,7 @@ import AdminUsers from './pages/AdminUsers.tsx';
 import AdminApprovals from './pages/AdminApprovals.tsx';
 import AdminStats from './pages/AdminStats.tsx';
 import AdminAIKeys from './pages/AdminAIKeys.tsx';
+import ConseilsIA from './pages/ConseilsIA.tsx';
 
 const PrivateRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const { token, loading } = useAuth();
@@ -78,6 +79,7 @@ export default function App() {
                             <Route path="/marketplace" element={<Marketplace />} />
                             <Route path="/marketplace/:id" element={<ProductDetail />} />
                             <Route path="/forum" element={<Forum />} />
+                            <Route path="/conseils" element={<PrivateRoute><ConseilsIA /></PrivateRoute>} />
 
                             {/* Private routes */}
                             <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
