@@ -124,7 +124,7 @@ const Messages: React.FC = () => {
                             c.userId === conv.userId ? { ...c, unread: 0 } : c
                         ));
                         // Signaler à la Navbar de décrémenter le badge
-                        window.dispatchEvent(new CustomEvent('msg-read'));
+                        window.dispatchEvent(new CustomEvent('msg-read', { detail: { userId: conv.userId } }));
                       } catch { /* silencieux */ }
                     }
                   }}

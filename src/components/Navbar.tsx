@@ -13,6 +13,7 @@ const Navbar: React.FC = () => {
   const [msgCount, setMsgCount]     = useState(0);
   const [scrolled, setScrolled]     = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [readConversations, setReadConversations] = useState<Set<number>>(new Set());
 
   // Panier : mis à jour en temps réel toutes les 500ms
   useEffect(() => {
@@ -35,19 +36,28 @@ const Navbar: React.FC = () => {
           setNotifCount(notifRes.value.data.filter((n: any) => !n.is_read).length);
         }
         if (msgRes.status === 'fulfilled') {
-          // Compter seulement les messages non lus reçus, en excluant la conversation actuellement ouverte
-          const isOnMessagesPage = location.pathname === '/messages';
+          // Compter seulement les messages non lus reçus, en excluant les conversations déjà lues
           const messages = msgRes.value.data;
-          let unreadCount = 0;
           
-          if (!isOnMessagesPage) {
-            // Si on n'est pas sur la page messages, compter tous les messages non lus reçus
-            unreadCount = messages.filter((m: any) => !m.is_read && m.receiver_id === user.id).length;
-          } else {
-            // Si on est sur la page messages, compter les messages non lus reçus mais exclure ceux de la conversation active
-            // Pour simplifier, on met 0 car si l'utilisateur est sur la page messages, il voit les conversations
-            unreadCount = 0;
-          }
+          // Grouper les messages par expéditeur
+          const messageGroups = new Map<number, any[]>();
+          messages.forEach((msg: any) => {
+            if (msg.receiver_id === user.id && !msg.is_read) {
+              const senderId = msg.sender_id;
+              if (!messageGroups.has(senderId)) {
+                messageGroups.set(senderId, []);
+              }
+              messageGroups.get(senderId)!.push(msg);
+            }
+          });
+          
+          // Compter seulement les conversations non lues
+          let unreadCount = 0;
+          messageGroups.forEach((msgs, senderId) => {
+            if (!readConversations.has(senderId)) {
+              unreadCount += msgs.length;
+            }
+          });
           
           setMsgCount(unreadCount);
         }
@@ -59,7 +69,13 @@ const Navbar: React.FC = () => {
     // Écouter les events des pages Notifications et Messages
     // pour remettre les badges à 0 instantanément sans attendre le poll
     const onNotifRead = () => setNotifCount(0);
-    const onMsgRead   = () => setMsgCount(0); // Mettre directement à 0 quand une conversation est ouverte
+    const onMsgRead   = (event: any) => {
+      // Ajouter l'ID de la conversation lue à l'état local
+      if (event.detail?.userId) {
+        setReadConversations(prev => new Set([...prev, event.detail.userId]));
+      }
+      setMsgCount(0); // Mettre directement à 0 quand une conversation est ouverte
+    };
     window.addEventListener('notif-read', onNotifRead);
     window.addEventListener('msg-read', onMsgRead);
 
