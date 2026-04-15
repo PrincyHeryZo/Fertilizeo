@@ -105,6 +105,14 @@ const Messages: React.FC = () => {
       window.dispatchEvent(new CustomEvent('msg-read'));
     } catch (error) {
       console.error('https://fertilizeo.onrender.com/messages/read:', error);
+      
+      // Solution alternative : mise à jour locale uniquement
+      console.log('https://fertilizeo.onrender.com/messages/read (solution locale)');
+      setConversations(prev => prev.map(c =>
+          c.userId === userId ? { ...c, unread: 0 } : c
+      ));
+      // Signaler à la Navbar de décrémenter le badge
+      window.dispatchEvent(new CustomEvent('msg-read'));
     }
   };
 
