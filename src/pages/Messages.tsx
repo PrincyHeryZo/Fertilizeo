@@ -42,7 +42,7 @@ const Messages: React.FC = () => {
   return parsed;
 });
 
-  useEffect(() => { fetchMessages(); }, [locallyReadConversations]);
+  useEffect(() => { fetchMessages(); }, []);
 
   // Sauvegarder dans localStorage quand l'état change
   useEffect(() => {
@@ -67,24 +67,6 @@ const Messages: React.FC = () => {
     try {
       const response = await api.get('/messages');
       const allMessages: Message[] = response.data;
-      
-      // Détecter les nouveaux messages reçus depuis la dernière vérification
-      const newMessages = allMessages.filter(msg => 
-        msg.receiver_id === user?.id && 
-        !msg.is_read && 
-        !locallyReadConversations.has(msg.sender_id)
-      );
-      
-      // Si on reçoit un nouveau message, nettoyer le localStorage pour cette conversation
-      if (newMessages.length > 0) {
-        const senderIds = new Set(newMessages.map(msg => msg.sender_id));
-        setLocallyReadConversations(prev => {
-          const newSet = new Set(prev);
-          senderIds.forEach(id => newSet.delete(id));
-          return newSet;
-        });
-      }
-      
       setMessages(allMessages);
       const convMap = new Map<number, Conversation>();
       allMessages.forEach(msg => {
