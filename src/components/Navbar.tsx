@@ -35,15 +35,9 @@ const Navbar: React.FC = () => {
           setNotifCount(notifRes.value.data.filter((n: any) => !n.is_read).length);
         }
         if (msgRes.status === 'fulfilled') {
-          // Compter les messages non lus reçus, en excluant les conversations lues localement
+          // Compter les messages non lus reçus
           const messages = msgRes.value.data;
-          const saved = localStorage.getItem('locallyReadConversations');
-          const locallyRead = saved ? new Set(JSON.parse(saved)) : new Set();
-          const unreadCount = messages.filter((m: any) => {
-            const isUnread = !m.is_read && m.receiver_id === user.id;
-            const isLocallyRead = locallyRead.has(m.sender_id);
-            return isUnread && !isLocallyRead;
-          }).length;
+          const unreadCount = messages.filter((m: any) => !m.is_read && m.receiver_id === user.id).length;
           setMsgCount(unreadCount);
           console.log('https://fertilizeo.onrender.com/messages/read:', unreadCount);
         }
