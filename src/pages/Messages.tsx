@@ -37,7 +37,9 @@ const Messages: React.FC = () => {
   const [locallyReadConversations, setLocallyReadConversations] = useState<Set<number>>(() => {
   // Charger depuis localStorage au démarrage
   const saved = localStorage.getItem('locallyReadConversations');
-  return saved ? new Set(JSON.parse(saved)) : new Set();
+  const parsed = saved ? new Set(JSON.parse(saved)) : new Set();
+  console.log('localStorage chargé:', Array.from(parsed));
+  return parsed;
 });
 
   useEffect(() => { fetchMessages(); }, [locallyReadConversations]);
@@ -74,6 +76,10 @@ const Messages: React.FC = () => {
         // Ignorer les messages non lus si la conversation est marquée comme lue localement
         const isLocallyRead = locallyReadConversations.has(otherId);
         const isUnread = !msg.is_read && msg.receiver_id === user?.id && !isLocallyRead;
+        
+        if (!msg.is_read && msg.receiver_id === user?.id) {
+          console.log(`Message non lu de ${otherId}: localementRead=${isLocallyRead}, isUnread=${isUnread}`);
+        }
         
         if (!convMap.has(otherId)) {
           convMap.set(otherId, { userId: otherId, userName: otherName, lastMessage: msg.content, unread: isUnread ? 1 : 0 });
