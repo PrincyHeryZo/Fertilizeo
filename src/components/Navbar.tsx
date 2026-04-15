@@ -1,19 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.tsx';
+import { useMessages } from '../context/MessageContext.tsx';
 import { ShoppingCart, LogOut, Bell, MessageSquare, Leaf, Menu, X, LayoutDashboard } from 'lucide-react';
 import { getCartCount } from '../utils/cart.ts';
 
 const Navbar: React.FC = () => {
   const { user, logout } = useAuth();
+  const { unreadCount: msgCount } = useMessages();
   const navigate = useNavigate();
   const location = useLocation();
   const [cartCount, setCartCount]   = useState(0);
   const [notifCount, setNotifCount] = useState(0);
-  const [msgCount, setMsgCount]     = useState(0);
   const [scrolled, setScrolled]     = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
-    
+
   // Panier : mis à jour en temps réel toutes les 500ms
   useEffect(() => {
     const update = () => setCartCount(getCartCount(user?.id));
@@ -22,46 +23,26 @@ const Navbar: React.FC = () => {
     return () => clearInterval(interval);
   }, [user?.id]);
 
-  // Notifications et messages non lus : rechargés toutes les 30s
+  // Notifications non lues : rechargées toutes les 30s
   useEffect(() => {
-    if (!user) { setNotifCount(0); setMsgCount(0); return; }
-    const fetchCounts = async () => {
+    if (!user) { setNotifCount(0); return; }
+    const fetchNotifs = async () => {
       try {
-        const [notifRes, msgRes] = await Promise.allSettled([
-          import('../services/api.ts').then(m => m.default.get('/notifications')),
-          import('../services/api.ts').then(m => m.default.get('/messages')),
-        ]);
-        if (notifRes.status === 'fulfilled') {
-          setNotifCount(notifRes.value.data.filter((n: any) => !n.is_read).length);
-        }
-        if (msgRes.status === 'fulfilled') {
-          // Compter les messages non lus reçus
-          const messages = msgRes.value.data;
-          const unreadCount = messages.filter((m: any) => !m.is_read && m.receiver_id === user.id).length;
-          setMsgCount(unreadCount);
-          console.log('https://fertilizeo.onrender.com/messages/read:', unreadCount);
-        }
+        const { default: api } = await import('../services/api.ts');
+        const res = await api.get('/notifications');
+        setNotifCount(res.data.filter((n: any) => !n.is_read).length);
       } catch { /* silencieux */ }
     };
-    fetchCounts();
-    const interval = setInterval(fetchCounts, 30000);
+    fetchNotifs();
+    const interval = setInterval(fetchNotifs, 30_000);
 
-    // Écouter les events des pages Notifications et Messages
-    // pour remettre les badges à 0 instantanément sans attendre le poll
     const onNotifRead = () => setNotifCount(0);
-    const onMsgRead   = () => {
-      console.log('🔔 Event msg-read reçu ! Mise à 0 du compteur');
-      setMsgCount(0); // Mettre directement à 0 quand une conversation est ouverte
-    };
     window.addEventListener('notif-read', onNotifRead);
-    window.addEventListener('msg-read', onMsgRead);
-
     return () => {
       clearInterval(interval);
       window.removeEventListener('notif-read', onNotifRead);
-      window.removeEventListener('msg-read', onMsgRead);
     };
-  }, [user, location.pathname]);
+  }, [user]);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 20);
@@ -179,11 +160,14 @@ const Navbar: React.FC = () => {
                     <Link to="/dashboard" className="flex items-center gap-3 px-4 py-3 rounded-xl text-gray-700 font-semibold hover:bg-emerald-50 hover:text-emerald-700 transition-all">
                       <LayoutDashboard size={18} /> Dashboard
                     </Link>
+                    <Link to="/messages" className="flex items-center gap-3 px-4 py-3 rounded-xl text-gray-700 font-semibold hover:bg-emerald-50 hover:text-emerald-700 transition-all">
+                      <MessageSquare size={18} /> Messages {msgCount > 0 && `(${msgCount})`}
+                    </Link>
                     <Link to="/cart" className="flex items-center gap-3 px-4 py-3 rounded-xl text-gray-700 font-semibold hover:bg-emerald-50 hover:text-emerald-700 transition-all">
                       <ShoppingCart size={18} /> Panier {cartCount > 0 && `(${cartCount})`}
                     </Link>
                     <Link to="/notifications" className="flex items-center gap-3 px-4 py-3 rounded-xl text-gray-700 font-semibold hover:bg-emerald-50 hover:text-emerald-700 transition-all">
-                      <Bell size={18} /> Notifications
+                      <Bell size={18} /> Notifications {notifCount > 0 && `(${notifCount})`}
                     </Link>
                     <button onClick={() => { logout(); navigate('/'); }} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-red-500 font-semibold hover:bg-red-50 transition-all">
                       <LogOut size={18} /> Déconnexion

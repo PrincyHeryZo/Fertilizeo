@@ -31,19 +31,41 @@ export const sendMessage = async (req: any, res: Response) => {
 
         res.status(201).json({ id: result.lastInsertRowid, message: 'Message envoyé.' });
     } catch (error) {
-        res.status(500).json({ message: 'Erreur lors de l\'envoi du message.' });
+        res.status(500).json({ message: "Erreur lors de l'envoi du message." });
     }
 };
 
 export const markMessagesRead = async (req: any, res: Response) => {
     const { sender_id } = req.body;
+
+    if (!sender_id) {
+        return res.status(400).json({ message: 'sender_id requis.' });
+    }
+
     try {
+        // TRUE/FALSE : compatible PostgreSQL et SQLite
         await db.run(
-            'UPDATE messages SET is_read = 1 WHERE receiver_id = ? AND sender_id = ? AND is_read = 0',
-            [req.user.id, sender_id]
+            'UPDATE messages SET is_read = TRUE WHERE receiver_id = ? AND sender_id = ? AND is_read = FALSE',
+            [req.user.id, Number(sender_id)]
         );
         res.json({ message: 'Messages marqués comme lus.' });
     } catch (error) {
+        console.error('markMessagesRead error:', error);
         res.status(500).json({ message: 'Erreur mise à jour.' });
+    }
+};
+
+// Endpoint léger : uniquement le compteur non lus pour la navbar
+export const getUnreadCount = async (req: any, res: Response) => {
+    try {
+        const row = await db.get(
+            'SELECT COUNT(*) as count FROM messages WHERE receiver_id = ? AND is_read = FALSE',
+            [req.user.id]
+        );
+        const count = parseInt(row?.count ?? '0', 10);
+        res.json({ count });
+    } catch (error) {
+        console.error('getUnreadCount error:', error);
+        res.json({ count: 0 });
     }
 };

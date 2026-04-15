@@ -5,7 +5,7 @@ import * as orderController from '../controllers/orderController.ts';
 import { createReview } from '../controllers/productController.ts';
 import * as forumController from '../controllers/forumController.ts';
 import * as messageController from '../controllers/messageController.ts';
-import { markMessagesRead } from '../controllers/messageController.ts';
+import { markMessagesRead, getUnreadCount } from '../controllers/messageController.ts';
 import * as adminController from '../controllers/adminController.ts';
 import * as notificationController from '../controllers/notificationController.ts';
 import * as aiController from '../controllers/aiController.ts';
@@ -48,6 +48,7 @@ router.post('/forum/comments', authenticateToken, forumController.createComment)
 
 // Messages
 router.get('/messages', authenticateToken, messageController.getMyMessages);
+router.get('/messages/unread-count', authenticateToken, getUnreadCount);
 router.post('/messages', authenticateToken, messageController.sendMessage);
 router.put('/messages/read', authenticateToken, markMessagesRead);
 

@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext.tsx';
 import { NotificationProvider } from './context/NotificationContext.tsx';
+import { MessageProvider } from './context/MessageContext.tsx';
 import { Toaster } from 'react-hot-toast';
 import Navbar from './components/Navbar.tsx';
 import Sidebar from './components/Sidebar.tsx';
@@ -69,6 +70,7 @@ export default function App() {
     return (
         <AuthProvider>
             <NotificationProvider>
+              <MessageProvider>
                 <Router>
                     <Layout>
                         <Routes>
@@ -102,6 +104,7 @@ export default function App() {
                         </Routes>
                     </Layout>
                 </Router>
+              </MessageProvider>
             </NotificationProvider>
         </AuthProvider>
     );
