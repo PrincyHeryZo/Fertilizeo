@@ -37,8 +37,16 @@ const Navbar: React.FC = () => {
         if (msgRes.status === 'fulfilled') {
           // Compter les messages non lus reçus
           const messages = msgRes.value.data;
-          const unreadCount = messages.filter((m: any) => !m.is_read && m.receiver_id === user.id).length;
+          console.log('📧 Messages reçus:', messages.length);
+          console.log('👤 User ID:', user.id);
+          
+          const unreadMessages = messages.filter((m: any) => !m.is_read && m.receiver_id === user.id);
+          console.log('🔴 Messages non lus:', unreadMessages.length);
+          console.log('📝 Détails messages non lus:', unreadMessages);
+          
+          const unreadCount = unreadMessages.length;
           setMsgCount(unreadCount);
+          console.log('🎯 Compteur mis à jour:', unreadCount);
         }
       } catch { /* silencieux */ }
     };
@@ -48,7 +56,10 @@ const Navbar: React.FC = () => {
     // Écouter les events des pages Notifications et Messages
     // pour remettre les badges à 0 instantanément sans attendre le poll
     const onNotifRead = () => setNotifCount(0);
-    const onMsgRead   = () => setMsgCount(0); // Mettre directement à 0 quand une conversation est ouverte
+    const onMsgRead   = () => {
+      console.log('🔔 Event msg-read reçu ! Mise à 0 du compteur');
+      setMsgCount(0); // Mettre directement à 0 quand une conversation est ouverte
+    };
     window.addEventListener('notif-read', onNotifRead);
     window.addEventListener('msg-read', onMsgRead);
 
