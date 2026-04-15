@@ -67,6 +67,24 @@ const Messages: React.FC = () => {
     try {
       const response = await api.get('/messages');
       const allMessages: Message[] = response.data;
+      
+      // Détecter les nouveaux messages reçus depuis la dernière vérification
+      const newMessages = allMessages.filter(msg => 
+        msg.receiver_id === user?.id && 
+        !msg.is_read && 
+        !locallyReadConversations.has(msg.sender_id)
+      );
+      
+      // Si on reçoit un nouveau message, nettoyer le localStorage pour cette conversation
+      if (newMessages.length > 0) {
+        const senderIds = new Set(newMessages.map(msg => msg.sender_id));
+        setLocallyReadConversations(prev => {
+          const newSet = new Set(prev);
+          senderIds.forEach(id => newSet.delete(id));
+          return newSet;
+        });
+      }
+      
       setMessages(allMessages);
       const convMap = new Map<number, Conversation>();
       allMessages.forEach(msg => {
@@ -145,6 +163,12 @@ const Messages: React.FC = () => {
     try {
       await api.post('/messages', { receiver_id: selectedUserId, content: newMessage.trim() });
       setNewMessage('');
+      // Nettoyer le localStorage pour cette conversation car on vient d'envoyer un message
+      setLocallyReadConversations(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(selectedUserId);
+        return newSet;
+      });
       fetchMessages();
     } catch {
       toast.error("Erreur lors de l'envoi");
