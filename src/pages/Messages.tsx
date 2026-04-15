@@ -84,16 +84,27 @@ const Messages: React.FC = () => {
 
   const markMessagesAsRead = async (userId: number) => {
     try {
-      console.log('🔖 Marquage automatique des messages comme lus pour utilisateur:', userId);
-      await api.put('/messages/read', { sender_id: userId });
+      console.log('https://fertilizeo.onrender.com/messages/read', userId);
+      
+      // Ajouter un timeout de 5 secondes
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Timeout après 5 secondes')), 5000);
+      });
+      
+      const response = await Promise.race([
+        api.put('/messages/read', { sender_id: userId }),
+        timeoutPromise
+      ]);
+      
+      console.log('https://fertilizeo.onrender.com/messages/read:', response);
       setConversations(prev => prev.map(c =>
           c.userId === userId ? { ...c, unread: 0 } : c
       ));
       // Signaler à la Navbar de décrémenter le badge
-      console.log('📡 Dispatch event msg-read (automatique)');
+      console.log('https://fertilizeo.onrender.com/messages/read (automatique)');
       window.dispatchEvent(new CustomEvent('msg-read'));
     } catch (error) {
-      console.error('❌ Erreur lors du marquage automatique:', error);
+      console.error('https://fertilizeo.onrender.com/messages/read:', error);
     }
   };
 
