@@ -42,7 +42,11 @@ const Messages: React.FC = () => {
     const toParam = searchParams.get('to');
     if (toParam) {
       const targetId = parseInt(toParam);
-      if (!isNaN(targetId)) setSelectedUserId(targetId);
+      if (!isNaN(targetId)) {
+        setSelectedUserId(targetId);
+        // Marquer les messages comme lus si la conversation est ouverte via URL
+        markMessagesAsRead(targetId);
+      }
     }
   }, [searchParams]);
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
@@ -77,6 +81,21 @@ const Messages: React.FC = () => {
       .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
 
   const selectedConv = conversations.find(c => c.userId === selectedUserId);
+
+  const markMessagesAsRead = async (userId: number) => {
+    try {
+      console.log('🔖 Marquage automatique des messages comme lus pour utilisateur:', userId);
+      await api.put('/messages/read', { sender_id: userId });
+      setConversations(prev => prev.map(c =>
+          c.userId === userId ? { ...c, unread: 0 } : c
+      ));
+      // Signaler à la Navbar de décrémenter le badge
+      console.log('📡 Dispatch event msg-read (automatique)');
+      window.dispatchEvent(new CustomEvent('msg-read'));
+    } catch (error) {
+      console.error('❌ Erreur lors du marquage automatique:', error);
+    }
+  };
 
   const handleSend = async () => {
     if (!newMessage.trim() || !selectedUserId) return;
@@ -115,15 +134,19 @@ const Messages: React.FC = () => {
                   </div>
               ) : conversations.map(conv => (
                   <button key={conv.userId} onClick={async () => {
+                    console.log('🖱️ Clic sur conversation:', conv.userId, 'unread:', conv.unread);
                     setSelectedUserId(conv.userId);
                     // Marquer les messages de cette conv comme lus
                     if (conv.unread > 0) {
                       try {
+                        console.log('📤 Envoi requête pour marquer messages comme lus...');
                         await api.put('/messages/read', { sender_id: conv.userId });
+                        console.log('✅ Messages marqués comme lus');
                         setConversations(prev => prev.map(c =>
                             c.userId === conv.userId ? { ...c, unread: 0 } : c
                         ));
                         // Signaler à la Navbar de décrémenter le badge
+                        console.log('📡 Dispatch event msg-read');
                         window.dispatchEvent(new CustomEvent('msg-read'));
                       } catch { /* silencieux */ }
                     }
