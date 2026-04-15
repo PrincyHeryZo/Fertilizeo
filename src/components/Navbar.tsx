@@ -13,6 +13,11 @@ const Navbar: React.FC = () => {
   const [msgCount, setMsgCount]     = useState(0);
   const [scrolled, setScrolled]     = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [locallyReadConversations, setLocallyReadConversations] = useState<Set<number>>(() => {
+    // Charger depuis localStorage au démarrage
+    const saved = localStorage.getItem('locallyReadConversations');
+    return saved ? new Set(JSON.parse(saved)) : new Set();
+  });
   
   // Panier : mis à jour en temps réel toutes les 500ms
   useEffect(() => {
@@ -35,16 +40,13 @@ const Navbar: React.FC = () => {
           setNotifCount(notifRes.value.data.filter((n: any) => !n.is_read).length);
         }
         if (msgRes.status === 'fulfilled') {
-          // Compter les messages non lus reçus
+          // Compter les messages non lus reçus, en excluant les conversations lues localement
           const messages = msgRes.value.data;
-          console.log('📧 Messages reçus:', messages.length);
-          console.log('👤 User ID:', user.id);
-          
-          const unreadMessages = messages.filter((m: any) => !m.is_read && m.receiver_id === user.id);
-          console.log('🔴 Messages non lus:', unreadMessages.length);
-          console.log('📝 Détails messages non lus:', unreadMessages);
-          
-          const unreadCount = unreadMessages.length;
+          const unreadCount = messages.filter((m: any) => {
+            const isUnread = !m.is_read && m.receiver_id === user.id;
+            const isLocallyRead = locallyReadConversations.has(m.sender_id);
+            return isUnread && !isLocallyRead;
+          }).length;
           setMsgCount(unreadCount);
           console.log('🎯 Compteur mis à jour:', unreadCount);
         }
@@ -68,7 +70,25 @@ const Navbar: React.FC = () => {
       window.removeEventListener('notif-read', onNotifRead);
       window.removeEventListener('msg-read', onMsgRead);
     };
-  }, [user, location.pathname]);
+  }, [user, location.pathname, locallyReadConversations]);
+
+  // Écouter les changements de localStorage depuis d'autres onglets/pages
+  useEffect(() => {
+    const handleStorageChange = () => {
+      const saved = localStorage.getItem('locallyReadConversations');
+      const parsed = saved ? new Set(JSON.parse(saved)) : new Set();
+      setLocallyReadConversations(parsed);
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    // Écouter aussi les changements locaux
+    const interval = setInterval(handleStorageChange, 1000);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      clearInterval(interval);
+    };
+  }, []);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 20);
