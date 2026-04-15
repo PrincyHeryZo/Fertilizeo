@@ -34,8 +34,18 @@ const Messages: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [locallyReadConversations, setLocallyReadConversations] = useState<Set<number>>(() => {
+  // Charger depuis localStorage au démarrage
+  const saved = localStorage.getItem('locallyReadConversations');
+  return saved ? new Set(JSON.parse(saved)) : new Set();
+});
 
-  useEffect(() => { fetchMessages(); }, []);
+  useEffect(() => { fetchMessages(); }, [locallyReadConversations]);
+
+  // Sauvegarder dans localStorage quand l'état change
+  useEffect(() => {
+    localStorage.setItem('locallyReadConversations', JSON.stringify(Array.from(locallyReadConversations)));
+  }, [locallyReadConversations]);
 
   // Ouvrir directement la conversation avec un vendeur si ?to= est présent dans l'URL
   useEffect(() => {
@@ -60,11 +70,16 @@ const Messages: React.FC = () => {
       allMessages.forEach(msg => {
         const otherId = msg.sender_id === user?.id ? msg.receiver_id : msg.sender_id;
         const otherName = msg.sender_id === user?.id ? (msg.receiver_name || 'Utilisateur') : (msg.sender_name || 'Utilisateur');
+        
+        // Ignorer les messages non lus si la conversation est marquée comme lue localement
+        const isLocallyRead = locallyReadConversations.has(otherId);
+        const isUnread = !msg.is_read && msg.receiver_id === user?.id && !isLocallyRead;
+        
         if (!convMap.has(otherId)) {
-          convMap.set(otherId, { userId: otherId, userName: otherName, lastMessage: msg.content, unread: (!msg.is_read && msg.receiver_id === user?.id) ? 1 : 0 });
+          convMap.set(otherId, { userId: otherId, userName: otherName, lastMessage: msg.content, unread: isUnread ? 1 : 0 });
         } else {
           const existing = convMap.get(otherId)!;
-          if (!msg.is_read && msg.receiver_id === user?.id) existing.unread++;
+          if (isUnread) existing.unread++;
         }
       });
       setConversations(Array.from(convMap.values()));
@@ -111,6 +126,8 @@ const Messages: React.FC = () => {
       setConversations(prev => prev.map(c =>
           c.userId === userId ? { ...c, unread: 0 } : c
       ));
+      // Ajouter à l'état local des conversations lues
+      setLocallyReadConversations(prev => new Set([...prev, userId]));
       // Signaler à la Navbar de décrémenter le badge
       window.dispatchEvent(new CustomEvent('msg-read'));
     }
