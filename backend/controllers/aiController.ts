@@ -13,7 +13,7 @@ const GROQ_API_KEY = process.env.GROQ_API_KEY;
 const GROQ_MODEL   = 'llama-3.3-70b-versatile';
 
 // Seuil minimum de score RAG pour considérer un chunk comme pertinent
-const MIN_CHUNK_SCORE = 5;
+const MIN_CHUNK_SCORE = 3;
 
 // ─── TYPES ───────────────────────────────────────────────────
 
@@ -216,27 +216,20 @@ Régions : Madagascar, Afrique de l'Est, Afrique de l'Ouest, Sahel.`;
   if (language === 'mg') {
     const hasKB = context && context.trim().length > 50;
     const kbRule = hasKB
-        ? 'KB HITA — ny etape efa ao amin\u2019ny \"Dingana\" alefa hafa. AMIN\u2019NY VALINTENIN\u2019NY IA : lazao FOTSINY ny vaovao lehibe, ny tombony, sy ny tsiambaratelo — 2-3 fehezanteny MONJA. AZA averina indray ny etape.'
-        : 'TSIS\u2019ISY KB : Lazao izay fantatrao avy amin\u2019ny siansa ary lazao mazava raha tsy misy angona voamarina.';
+        ? 'Raha misy angona amin\'ny knowledge base, mampiasa azy io. Aza averina indray ny etape efa voalaza.'
+        : 'Raha tsy misy angona mazava, milaza mazava fa tsy misy dika voamarina.';
     return [
-      'Ianao dia FEZA, mpanampy IA manam-pahaizana momba ny fambolena maharitra sy ny fiompiana any Madagasikara.',
-      "Noforonina ianao nataon\u2019i Fertili\u2019zeo \u2014 ny sehatra voalohany momba ny fambolena nomerika any Madagasikara.",
+      'Ianao dia FEZA, mpanampy IA momba ny fambolena sy fiompiana any Madagasikara.',
+      'Manam-pahaizana momba : zezika, komposita, trondro, tantely, vary, katsaka, mangahazo.',
       expertise,
       kb,
-      'FITSIPIKA MAHERY \u2014 TSILAZAO IRETO FOANA :',
-      '',
-      '1. MALAGASY VOAJANAHARY FOANA : Ampiasao malagasy mahazatra toy ny fomba resak\u2019ny mpitatitra fambolena. FADY tanteraka ny hoe "Tokony mamaly... Tokony manorona... Tokony mananana..." satria avy amin\u2019ny traduction automatique ratsy ireo. Ampiasao teny hafa : "Asio...", "Ataovy...", "Jereo...", "Maka...", "Atao..."',
-      '',
+      'FITSIPITRY NY VALINTENY :',
+      '1. Valio amin\'ny teny malagasy tsotra, fohy, mazava.',
       '2. ' + kbRule,
-      '',
-      '3. FOHY : 2-4 fehezanteny monja. Raha ilaina lisitra madinika, 3 monja no ampy.',
-      '',
-      '4. NPK : Lazao fotsiny raha hita amin\u2019ny knowledge base \u2014 AZA MAMORONA isa.',
-      '',
-      '5. MANOMBOKA MIVANTANA amin\u2019ny valin\u2019ny fanontaniana \u2014 aza manomboka amin\u2019ny famaritana ankapobeny.',
-      '',
-      'FADY : "Ny [lohahevitra] dia ... Mba hahazoana ... tsara, tokony manaraka ny fepetra sy ny fotoana tokony hatao."',
-      'TSARA : Valio mivantana amin\u2019ny fehezanteny voalohany \u2014 fohy, mazava, malagasy voajanahary.',
+      '3. Aza manao valiny lava loatra (2-4 fehezanteny raha azo).',
+      '4. Mampiasay teny fotsiny : "Asio...", "Ataovy...", "Jereo...", "Maka...".',
+      '5. Raha misy NPK amin\'ny KB, lazao izany. Aza mamorona isa.',
+      '6. Valio mivantana ny fanontaniana, aza manomboka amin\'ny famaritana.',
     ].join('\n');
   }
 
@@ -691,7 +684,7 @@ export const chat = async (req: any, res: Response) => {
   }
 
   try {
-    const chunks = await searchKnowledgeBase(question, 5, language, history);
+    const chunks = await searchKnowledgeBase(question, 8, language, history);
     const context = buildContext(chunks);
     const { answer, tokens } = await callGroq(question, context, history, language);
 
@@ -844,3 +837,6 @@ export const kbSearch = async (req: any, res: Response) => {
     res.status(500).json({ message: 'Erreur recherche KB.' });
   }
 };
+
+// Export des fonctions utilitaires pour les tests
+export { searchKnowledgeBase, buildContext, isOnTopic };
