@@ -47,6 +47,9 @@ const Messages: React.FC = () => {
       if (!isNaN(targetId)) {
         setSelectedUserId(targetId);
         markConversationRead(targetId);
+        
+        // Créer une conversation automatique si aucun message n'existe
+        createConversationIfNotExists(targetId);
       }
     }
   }, [searchParams]);
@@ -54,6 +57,33 @@ const Messages: React.FC = () => {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  const createConversationIfNotExists = async (targetUserId: number) => {
+    try {
+      // Récupérer tous les messages pour vérifier si une conversation existe
+      const response = await api.get('/messages');
+      const allMessages: Message[] = response.data;
+      
+      const hasExistingConversation = allMessages.some(m => 
+        (m.sender_id === user?.id && m.receiver_id === targetUserId) ||
+        (m.receiver_id === user?.id && m.sender_id === targetUserId)
+      );
+      
+      if (!hasExistingConversation && user) {
+        // Créer un message d'accueil automatique
+        await api.post('/messages', {
+          receiver_id: targetUserId,
+          content: `Bonjour ! Je suis intéressé(e) par vos produits. Pourriez-vous me donner votre numéro MVola ou Orange Money pour le paiement ?`
+        });
+        // Rafraîchir les messages pour inclure le nouveau message
+        await fetchMessages();
+        toast.success('Conversation créée avec succès');
+      }
+    } catch (error) {
+      console.error('Erreur création conversation:', error);
+      toast.error('Impossible de créer la conversation');
+    }
+  };
 
   const fetchMessages = async () => {
     try {
